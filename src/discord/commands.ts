@@ -22,12 +22,11 @@ export async function registerCommands(token: string, clientId: string) {
 
 		await rest.put(Routes.applicationCommands(clientId), {
 			body: COMMANDS.map((c) => c.toJSON()),
-			signal: AbortSignal.timeout(10_000),
+			signal: AbortSignal.timeout(30_000),
 		});
 
 		logger.info('Application commands registered');
 	} catch (error) {
 		logger.error({ error }, 'Failed to register application commands');
-		throw error;
 	}
 }
