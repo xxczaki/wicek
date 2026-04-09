@@ -13,7 +13,11 @@ export function attachMessageHandler(client: Client) {
 		if (message.author.bot) return;
 
 		logger.info(
-			{ author: message.author.id, channelType: message.channel.type, partial: message.partial },
+			{
+				author: message.author.id,
+				channelType: message.channel.type,
+				partial: message.partial,
+			},
 			'Incoming message',
 		);
 
