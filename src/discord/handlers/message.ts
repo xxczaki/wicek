@@ -11,6 +11,12 @@ import { handleAskMessage } from './ask.ts';
 export function attachMessageHandler(client: Client) {
 	client.on('messageCreate', async (message: Message) => {
 		if (message.author.bot) return;
+
+		logger.info(
+			{ author: message.author.id, channelType: message.channel.type, partial: message.partial },
+			'Incoming message',
+		);
+
 		if (!isAllowedUser(message.author.id)) return;
 
 		try {
