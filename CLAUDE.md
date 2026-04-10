@@ -70,6 +70,17 @@ Instance: https://parsify.grafana.net (org: parsify)
 Datasources: Prometheus (Mimir), Loki, Tempo, Pyroscope
 API key: $GRAFANA_API_KEY
 
+## Code Style
+
+- Always use `pnpm`
+- No comments — code should be self-explanatory. Only in extremely rare cases for non-obvious logic or workarounds
+- Use `#` notation for private class fields/methods, avoid `public` keyword
+- Use CONSTANT_CASE with units in names (e.g., `CACHE_WRITE_BUFFER_MS`)
+- Use `logger` from `src/utils/logger.ts` instead of console methods
+- Use descriptive variable names, avoid single-letter variables
+- Use simple, grammatically correct American English
+- Use emojis sparingly — only where they add meaningful context
+
 ## Data Locations
 
 - Read-only config: /app (CLAUDE.md, .claude/, cron.json)
