@@ -34,10 +34,6 @@ export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
 		'--include-partial-messages',
 		'--permission-mode',
 		'acceptEdits',
-		'--max-turns',
-		'25',
-		'--max-budget-usd',
-		'5.00',
 	];
 
 	if (options.sessionId) {
