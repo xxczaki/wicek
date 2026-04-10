@@ -16,8 +16,10 @@ export function getEnv(key: string): string {
 export function getEnvList(key: string): string[] {
 	return getEnv(key)
 		.split(',')
-		.map((s) => s.trim())
-		.filter(Boolean);
+		.flatMap((s) => {
+			const trimmed = s.trim();
+			return trimmed ? [trimmed] : [];
+		});
 }
 
 export function getOptionalEnv(key: string): string | undefined {
