@@ -44,11 +44,7 @@ export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
 
 	const child = spawn('node', args, {
 		stdio: ['ignore', 'pipe', 'pipe'],
-		env: {
-			...process.env,
-			// Ensure Claude Code finds its config
-			HOME: process.env.HOME,
-		},
+		env: { ...process.env, HOME: process.env.HOME },
 		signal: options.signal,
 	});
 
@@ -61,7 +57,6 @@ export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
 		logger.error({ error }, 'Claude process error');
 	});
 
-	// stdout is guaranteed non-null because stdio[1] is 'pipe'
 	const rl = createInterface({ input: child.stdout as NodeJS.ReadableStream });
 
 	const lines = (async function* () {

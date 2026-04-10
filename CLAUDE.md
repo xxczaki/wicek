@@ -25,14 +25,14 @@ ArgoCD auto-syncs changes (typically within a minute).
 
 **Homelab repo** (github.com/xxczaki/homelab):
 
-- `apps/wicek/` — ArgoCD Application + K8s resources
-- `apps/wicek/resources/` — Sealed secrets, Tailscale egress services
+- `apps/wicek/` – ArgoCD Application + K8s resources
+- `apps/wicek/resources/` – Sealed secrets, Tailscale egress services
 - Root app at `root-application.yaml` syncs `apps/` recursively
 - Auto-heal and auto-sync enabled
 
 **Charts repo** (github.com/xxczaki/charts):
 
-- `charts/wicek/` — Helm chart
+- `charts/wicek/` – Helm chart
 - Published to https://xxczaki.github.io/charts/
 
 **To update deployment:**
@@ -74,13 +74,13 @@ API key: $GRAFANA_API_KEY
 ## Code Style
 
 - Always use `pnpm`
-- No comments — code should be self-explanatory. Only in extremely rare cases for non-obvious logic or workarounds
+- No comments – code should be self-explanatory. Only in extremely rare cases for non-obvious logic or workarounds
 - Use `#` notation for private class fields/methods, avoid `public` keyword
 - Use CONSTANT_CASE with units in names (e.g., `CACHE_WRITE_BUFFER_MS`)
 - Use `logger` from `src/utils/logger.ts` instead of console methods
 - Use descriptive variable names, avoid single-letter variables
 - Use simple, grammatically correct American English
-- Use emojis sparingly — only where they add meaningful context
+- Use emojis sparingly – only where they add meaningful context
 
 ## Data Locations
 

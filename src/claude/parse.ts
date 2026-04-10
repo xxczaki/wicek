@@ -31,13 +31,11 @@ export async function* parseClaudeStream(
 
 		const type = event.type as string | undefined;
 
-		// System init — capture session ID
 		if (type === 'system' && event.subtype === 'init') {
 			sessionId = (event.session_id as string) || '';
 			continue;
 		}
 
-		// Streaming text delta
 		if (type === 'stream_event') {
 			const delta = (event.event as Record<string, unknown> | undefined)
 				?.delta as Record<string, unknown> | undefined;
@@ -47,7 +45,6 @@ export async function* parseClaudeStream(
 			continue;
 		}
 
-		// Assistant message (non-streaming, for tool use tracking)
 		if (type === 'assistant') {
 			const message = event.message as Record<string, unknown> | undefined;
 			const content = message?.content as
@@ -69,7 +66,6 @@ export async function* parseClaudeStream(
 			continue;
 		}
 
-		// Tool result
 		if (type === 'user') {
 			const message = event.message as Record<string, unknown> | undefined;
 			const content = message?.content as
@@ -89,7 +85,6 @@ export async function* parseClaudeStream(
 			continue;
 		}
 
-		// Final result
 		if (type === 'result') {
 			yield {
 				type: 'result',

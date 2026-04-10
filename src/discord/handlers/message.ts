@@ -29,7 +29,6 @@ export function attachMessageHandler(client: Client) {
 				return;
 			}
 
-			// In a server: respond to @mentions
 			if (isBotMentioned(message)) {
 				const prompt = extractPromptFromMention(message);
 				if (!prompt) return;
@@ -37,7 +36,6 @@ export function attachMessageHandler(client: Client) {
 				return;
 			}
 
-			// In an existing bot thread: continue the conversation
 			if (
 				message.channel.type === ChannelType.PublicThread &&
 				message.channel.ownerId === client.user?.id

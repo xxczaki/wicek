@@ -10,7 +10,6 @@ import { spawnClaude } from '../../claude/spawn.ts';
 import { streamToDiscord } from '../../stream/discord.ts';
 import logger from '../../utils/logger.ts';
 
-// Simple concurrency guard — one Claude process at a time (RPi4 constraint)
 let busy = false;
 
 function getContextFromMessage(message: Message) {
@@ -61,9 +60,6 @@ async function runAgent(
 	}
 }
 
-/**
- * Handle the /ask slash command.
- */
 export async function handleAskInteraction(
 	interaction: ChatInputCommandInteraction,
 ) {
@@ -76,7 +72,6 @@ export async function handleAskInteraction(
 		return;
 	}
 
-	// For server channels (not DMs, not threads), create a thread for isolation
 	if (channel.type === ChannelType.GuildText) {
 		const thread = await channel.threads.create({
 			name: prompt.slice(0, 100),
@@ -95,7 +90,6 @@ export async function handleAskInteraction(
 		return;
 	}
 
-	// DMs or existing threads — reply directly
 	const ctx = {
 		isDM: channel.type === ChannelType.DM,
 		userId: interaction.user.id,
@@ -104,20 +98,15 @@ export async function handleAskInteraction(
 		channelId: channel.id,
 	};
 
-	// Delete the deferred reply and use the channel directly for streaming
 	await interaction.deleteReply();
 	await runAgent(prompt, channel as SendableChannels, ctx);
 }
 
-/**
- * Handle a regular message (DM, @mention, or thread reply).
- */
 export async function handleAskMessage(message: Message, prompt: string) {
 	if (!('send' in message.channel)) return;
 
 	const ctx = getContextFromMessage(message);
 
-	// In server channels that aren't threads, create a thread
 	if (
 		!ctx.isDM &&
 		!ctx.threadId &&

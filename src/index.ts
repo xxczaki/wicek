@@ -10,10 +10,8 @@ import logger from './utils/logger.ts';
 const token = getEnv('DISCORD_TOKEN');
 const clientId = getEnv('CLIENT_ID');
 
-// Register slash commands
 await registerCommands(token, clientId);
 
-// Create and configure the Discord client
 const client = createClient();
 
 client.once('ready', (c) => {
@@ -21,14 +19,11 @@ client.once('ready', (c) => {
 	initCronScheduler(client);
 });
 
-// Attach event handlers
 attachInteractionHandler(client);
 attachMessageHandler(client);
 
-// Login
 await client.login(token);
 
-// Graceful shutdown
 function shutdown(signal: string) {
 	logger.info({ signal }, 'Shutting down');
 	stopCronScheduler();

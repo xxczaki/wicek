@@ -60,7 +60,6 @@ async function executeJob(job: CronJobDef, client: Client) {
 		}
 
 		if (text) {
-			// Split into 2000-char chunks for Discord DM
 			const chunks = splitMessage(text);
 			for (const chunk of chunks) {
 				await user.send(chunk);

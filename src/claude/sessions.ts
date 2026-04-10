@@ -28,7 +28,7 @@ function load() {
 		}
 		logger.info({ count: sessions.size }, 'Loaded session mappings');
 	} catch {
-		// File doesn't exist yet — that's fine
+		// File doesn't exist yet
 	}
 }
 

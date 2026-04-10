@@ -30,6 +30,7 @@ export async function streamToDiscord(
 	let lastEdit = 0;
 	let sessionId = '';
 	let resultText = '';
+
 	async function flushBuffer() {
 		if (!buffer) return;
 		if (!currentMessage) {
@@ -46,7 +47,6 @@ export async function streamToDiscord(
 				case 'text': {
 					buffer += event.content;
 
-					// Split if approaching Discord's limit
 					if (buffer.length > SAFE_LIMIT) {
 						const splitPoint = buffer.lastIndexOf('\n', SAFE_LIMIT);
 						const cutAt = splitPoint > SAFE_LIMIT / 2 ? splitPoint : SAFE_LIMIT;
@@ -69,7 +69,6 @@ export async function streamToDiscord(
 					if (event.status === 'start' && event.name) {
 						const status = `> ${toolLabel(event.name)}...`;
 
-						// Send tool status as a separate update if we have no content yet
 						if (!buffer && !currentMessage) {
 							currentMessage = await channel.send(status);
 							lastEdit = Date.now();
@@ -100,11 +99,9 @@ export async function streamToDiscord(
 			}
 		}
 
-		// Final flush
 		if (buffer) {
 			await flushBuffer();
 		} else if (!currentMessage) {
-			// Claude returned no text (unlikely but handle gracefully)
 			await channel.send('*(No response)*');
 		}
 	} catch (error) {
