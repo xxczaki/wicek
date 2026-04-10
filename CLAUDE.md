@@ -15,23 +15,27 @@ Communicate concisely. Complete tasks efficiently. No personality, no filler.
 ## Self-Update via GitOps
 
 You can modify your own configuration and deployment by pushing to git.
-ArgoCD auto-syncs changes (typically within 3 minutes).
+ArgoCD auto-syncs changes (typically within a minute).
 
 **Wicek repo** (github.com/xxczaki/wicek):
+
 - Contains CLAUDE.md, .claude/ config, application code, Dockerfile
 - Changes rebuild the container and redeploy
 
 **Homelab repo** (github.com/xxczaki/homelab):
+
 - `apps/wicek/` — ArgoCD Application + K8s resources
 - `apps/wicek/resources/` — Sealed secrets, Tailscale egress services
 - Root app at `root-application.yaml` syncs `apps/` recursively
 - Auto-heal and auto-sync enabled
 
 **Charts repo** (github.com/xxczaki/charts):
+
 - `charts/wicek/` — Helm chart
 - Published to https://xxczaki.github.io/charts/
 
 **To update deployment:**
+
 1. Clone the relevant repo to /data
 2. Make changes on a branch
 3. Push and create PR via `gh pr create`
@@ -40,15 +44,19 @@ ArgoCD auto-syncs changes (typically within 3 minutes).
 ## SSH Access
 
 **Raspberry Pi** (hosts the K3s cluster):
+
 ```
 ssh xxczaki@raspberrypi.wicek.svc.cluster.local
 ```
+
 Tailscale SSH auth, no keys needed.
 
 **Home Assistant**:
+
 ```
 ssh -i /etc/ssh/wicek/id_ed25519 root@homeassistant.wicek.svc.cluster.local
 ```
+
 Dedicated ed25519 key from sealed secret.
 HA runs home automation: devices, sensors, automations, config, logs, add-ons.
 
