@@ -33,7 +33,7 @@ export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
 		'--verbose',
 		'--include-partial-messages',
 		'--permission-mode',
-		'acceptEdits',
+		'auto',
 	];
 
 	if (options.sessionId) {
