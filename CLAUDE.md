@@ -71,6 +71,11 @@ Instance: https://parsify.grafana.net (org: parsify)
 Datasources: Prometheus (Mimir), Loki, Tempo, Pyroscope
 API key: $GRAFANA_API_KEY
 
+## Browser Tools
+
+- **WebFetch/WebSearch** – read-only page content, quick lookups, search results. Use by default.
+- **chrome-devtools MCP** – interactive browser: click, type, fill forms, take screenshots, run JS, read console. Use when you need to see how a page looks, interact with a web app, or debug frontend issues.
+
 ## Code Style
 
 - Always use `pnpm`
