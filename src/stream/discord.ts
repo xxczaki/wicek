@@ -1,4 +1,9 @@
-import type { Message, SendableChannels } from 'discord.js';
+import { existsSync } from 'node:fs';
+import {
+	AttachmentBuilder,
+	type Message,
+	type SendableChannels,
+} from 'discord.js';
 import type { AgentEvent } from '../claude/parse.ts';
 import logger from '../utils/logger.ts';
 
@@ -19,6 +24,44 @@ const TOOL_LABELS: Record<string, string> = {
 
 function toolLabel(name: string): string {
 	return TOOL_LABELS[name] || `Using ${name}`;
+}
+
+const FILE_PATH_REGEX =
+	/(?:\/[\w./-]+\.(?:png|jpg|jpeg|gif|webp|svg|pdf|csv|json|txt|md|html))/gi;
+
+const SENDABLE_EXTENSIONS = new Set([
+	'.png',
+	'.jpg',
+	'.jpeg',
+	'.gif',
+	'.webp',
+	'.svg',
+	'.pdf',
+	'.csv',
+	'.json',
+	'.txt',
+	'.md',
+	'.html',
+]);
+
+function extractFilePaths(text: string): string[] {
+	const matches = text.match(FILE_PATH_REGEX) || [];
+	return [...new Set(matches)].filter((path) => {
+		const ext = path.slice(path.lastIndexOf('.'));
+		return SENDABLE_EXTENSIONS.has(ext) && existsSync(path);
+	});
+}
+
+async function sendFileAttachments(channel: SendableChannels, text: string) {
+	const paths = extractFilePaths(text);
+	if (paths.length === 0) return;
+
+	const attachments = paths.map((p) => new AttachmentBuilder(p));
+	try {
+		await channel.send({ files: attachments });
+	} catch (error) {
+		logger.error({ error, paths }, 'Failed to send file attachments');
+	}
 }
 
 export async function streamToDiscord(
@@ -104,6 +147,8 @@ export async function streamToDiscord(
 		} else if (!currentMessage) {
 			await channel.send('*(No response)*');
 		}
+
+		await sendFileAttachments(channel, resultText);
 	} catch (error) {
 		logger.error({ error }, 'Stream-to-Discord failed');
 		await channel
