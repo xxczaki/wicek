@@ -25,7 +25,8 @@ ENV NODE_ENV=production
 ENV DATA_DIR=/data
 
 RUN mkdir -p /data /home/node/.claude && \
-    chown -R node:node /data /home/node/.claude
+    echo '{}' > /home/node/.claude.json && \
+    chown -R node:node /data /home/node/.claude /home/node/.claude.json
 
 USER node
 CMD ["node", "dist/index.js"]

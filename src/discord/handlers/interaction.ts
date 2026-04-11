@@ -10,7 +10,7 @@ export function attachInteractionHandler(client: Client) {
 		if (!isAllowedUser(interaction.user.id)) {
 			await interaction.reply({
 				content: 'You are not authorized to use this bot.',
-				ephemeral: true,
+				flags: ['Ephemeral'],
 			});
 			return;
 		}
@@ -26,7 +26,7 @@ export function attachInteractionHandler(client: Client) {
 				default:
 					await interaction.reply({
 						content: 'Unknown command.',
-						ephemeral: true,
+						flags: ['Ephemeral'],
 					});
 			}
 		} catch (error) {

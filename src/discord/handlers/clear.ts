@@ -6,7 +6,7 @@ export async function handleClear(interaction: ChatInputCommandInteraction) {
 	if (!channel) {
 		await interaction.reply({
 			content: 'Could not resolve channel.',
-			ephemeral: true,
+			flags: ['Ephemeral'],
 		});
 		return;
 	}
@@ -23,6 +23,6 @@ export async function handleClear(interaction: ChatInputCommandInteraction) {
 
 	await interaction.reply({
 		content: 'Context cleared. Next message starts a fresh conversation.',
-		ephemeral: true,
+		flags: ['Ephemeral'],
 	});
 }

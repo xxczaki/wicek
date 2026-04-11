@@ -73,6 +73,7 @@ export async function streamToDiscord(
 	let lastEdit = 0;
 	let sessionId = '';
 	let resultText = '';
+	let allText = '';
 
 	async function flushBuffer() {
 		if (!buffer) return;
@@ -89,6 +90,7 @@ export async function streamToDiscord(
 			switch (event.type) {
 				case 'text': {
 					buffer += event.content;
+					allText += event.content;
 
 					if (buffer.length > SAFE_LIMIT) {
 						const splitPoint = buffer.lastIndexOf('\n', SAFE_LIMIT);
@@ -148,7 +150,7 @@ export async function streamToDiscord(
 			await channel.send('*(No response)*');
 		}
 
-		await sendFileAttachments(channel, resultText);
+		await sendFileAttachments(channel, allText || resultText);
 	} catch (error) {
 		logger.error({ error }, 'Stream-to-Discord failed');
 		await channel
