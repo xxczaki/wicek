@@ -4,8 +4,10 @@ import { getOptionalEnv } from '../utils/env.ts';
 import logger from '../utils/logger.ts';
 
 export type AgentEvent =
+	| { type: 'thinking'; content: string }
 	| { type: 'text'; content: string }
-	| { type: 'tool'; name: string; status: 'start' | 'end'; filePath?: string }
+	| { type: 'tool_start'; name: string; input: string; filePath?: string }
+	| { type: 'tool_end'; filePath?: string }
 	| {
 			type: 'result';
 			sessionId: string;
@@ -20,6 +22,7 @@ export async function* parseClaudeStream(
 ): AsyncGenerator<AgentEvent> {
 	let sessionId = '';
 	let resultText = '';
+	let currentToolInput = '';
 
 	for await (const line of lines) {
 		if (!line.trim()) continue;
@@ -40,10 +43,32 @@ export async function* parseClaudeStream(
 		}
 
 		if (type === 'stream_event') {
-			const delta = (event.event as Record<string, unknown> | undefined)
-				?.delta as Record<string, unknown> | undefined;
-			if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+			const evt = event.event as Record<string, unknown> | undefined;
+			const delta = evt?.delta as Record<string, unknown> | undefined;
+			const deltaType = delta?.type as string | undefined;
+
+			if (
+				deltaType === 'thinking_delta' &&
+				typeof delta?.thinking === 'string'
+			) {
+				yield { type: 'thinking', content: delta.thinking };
+			} else if (
+				deltaType === 'text_delta' &&
+				typeof delta?.text === 'string'
+			) {
 				yield { type: 'text', content: delta.text };
+			} else if (
+				deltaType === 'input_json_delta' &&
+				typeof delta?.partial_json === 'string'
+			) {
+				currentToolInput += delta.partial_json;
+			} else if (deltaType === 'content_block_start') {
+				const block = evt?.content_block as Record<string, unknown> | undefined;
+				if (block?.type === 'tool_use') {
+					currentToolInput = '';
+				}
+			} else if (deltaType === 'content_block_stop') {
+				currentToolInput = '';
 			}
 			continue;
 		}
@@ -58,11 +83,12 @@ export async function* parseClaudeStream(
 					if (block.type === 'tool_use') {
 						const input = block.input as Record<string, unknown> | undefined;
 						const filePath = input?.file_path as string | undefined;
+						const inputSummary = formatToolInput(block.name as string, input);
 						logger.info({ tool: block.name, filePath }, 'Tool use');
 						yield {
-							type: 'tool',
+							type: 'tool_start',
 							name: block.name as string,
-							status: 'start',
+							input: inputSummary,
 							filePath,
 						};
 					} else if (block.type === 'text' && typeof block.text === 'string') {
@@ -82,12 +108,7 @@ export async function* parseClaudeStream(
 				for (const block of content) {
 					if (block.type === 'tool_result') {
 						const savedPath = extractImageFromToolResult(block);
-						yield {
-							type: 'tool',
-							name: '',
-							status: 'end',
-							filePath: savedPath,
-						};
+						yield { type: 'tool_end', filePath: savedPath };
 					}
 				}
 			}
@@ -104,6 +125,22 @@ export async function* parseClaudeStream(
 			};
 		}
 	}
+}
+
+function formatToolInput(
+	name: string,
+	input: Record<string, unknown> | undefined,
+): string {
+	if (!input) return '';
+	if (name === 'Bash') return (input.command as string) || '';
+	if (name === 'Read' || name === 'Write' || name === 'Edit')
+		return (input.file_path as string) || '';
+	if (name === 'Glob') return (input.pattern as string) || '';
+	if (name === 'Grep') return (input.pattern as string) || '';
+	if (name === 'WebFetch') return (input.url as string) || '';
+	if (name === 'WebSearch') return (input.query as string) || '';
+	if (name.startsWith('mcp__')) return JSON.stringify(input).slice(0, 100);
+	return '';
 }
 
 const MEDIA_DIR = resolve(getOptionalEnv('DATA_DIR') || '/data', 'media');

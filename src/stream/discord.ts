@@ -8,7 +8,7 @@ import type { AgentEvent } from '../claude/parse.ts';
 import logger from '../utils/logger.ts';
 
 const SAFE_LIMIT = 1900;
-const EDIT_INTERVAL_MS = 1500;
+const FLUSH_INTERVAL_MS = 1500;
 
 export async function streamToDiscord(
 	events: AsyncIterable<AgentEvent>,
@@ -16,60 +16,95 @@ export async function streamToDiscord(
 ): Promise<{ sessionId: string; resultText: string }> {
 	let currentMessage: Message | null = null;
 	let buffer = '';
-	let lastEdit = 0;
+	let lastFlush = 0;
 	let sessionId = '';
 	let resultText = '';
 	let allText = '';
+	let isThinking = false;
 	const writtenFiles: string[] = [];
 
-	async function flushBuffer() {
+	async function flush() {
 		if (!buffer) return;
 		if (!currentMessage) {
 			currentMessage = await channel.send(buffer);
 		} else {
 			await currentMessage.edit(buffer);
 		}
-		lastEdit = Date.now();
+		lastFlush = Date.now();
+	}
+
+	async function finalizeCurrent() {
+		if (buffer) await flush();
+		currentMessage = null;
+		buffer = '';
 	}
 
 	try {
 		for await (const event of events) {
 			switch (event.type) {
+				case 'thinking': {
+					if (!isThinking && event.content.trim()) {
+						if (buffer && !buffer.endsWith('\n')) buffer += '\n';
+						buffer += '> ';
+						isThinking = true;
+					}
+					buffer += event.content.replaceAll('\n', '\n> ');
+					allText += event.content;
+
+					if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) await flush();
+					break;
+				}
+
 				case 'text': {
+					if (isThinking) {
+						buffer += '\n\n';
+						isThinking = false;
+					}
 					buffer += event.content;
 					allText += event.content;
 
 					if (buffer.length > SAFE_LIMIT) {
-						const splitPoint = buffer.lastIndexOf('\n', SAFE_LIMIT);
-						const cutAt = splitPoint > SAFE_LIMIT / 2 ? splitPoint : SAFE_LIMIT;
-						const chunk = buffer.slice(0, cutAt);
-						buffer = buffer.slice(cutAt);
+						const splitAt = findSplitPoint(buffer);
+						const chunk = buffer.slice(0, splitAt);
+						buffer = buffer.slice(splitAt);
 
 						if (currentMessage) {
 							await currentMessage.edit(chunk);
 						} else {
-							currentMessage = await channel.send(chunk);
+							await channel.send(chunk);
 						}
 						currentMessage = null;
-					} else if (Date.now() - lastEdit >= EDIT_INTERVAL_MS) {
-						await flushBuffer();
+					} else if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) {
+						await flush();
 					}
 					break;
 				}
 
-				case 'tool': {
-					if (event.filePath) {
-						writtenFiles.push(event.filePath);
+				case 'tool_start': {
+					if (isThinking) {
+						buffer += '\n\n';
+						isThinking = false;
 					}
 
-					if (event.status === 'start' && event.name) {
-						const status = `> ${toolLabel(event.name)}...`;
+					const label = event.input
+						? `\`${event.name}\` ${event.input}`
+						: `\`${event.name}\``;
+					const toolLine = `> ${label}\n`;
 
-						if (!buffer && !currentMessage) {
-							currentMessage = await channel.send(status);
-							lastEdit = Date.now();
-						}
+					if (!buffer && !currentMessage) {
+						currentMessage = await channel.send(toolLine);
+						lastFlush = Date.now();
+					} else {
+						buffer += toolLine;
+						if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) await flush();
 					}
+
+					if (event.filePath) writtenFiles.push(event.filePath);
+					break;
+				}
+
+				case 'tool_end': {
+					if (event.filePath) writtenFiles.push(event.filePath);
 					break;
 				}
 
@@ -81,22 +116,15 @@ export async function streamToDiscord(
 
 				case 'error': {
 					logger.error({ message: event.message }, 'Agent error');
-					if (currentMessage) {
-						await currentMessage.edit(
-							buffer
-								? `${buffer}\n\n**Error:** ${event.message}`
-								: `**Error:** ${event.message}`,
-						);
-					} else {
-						await channel.send(`**Error:** ${event.message}`);
-					}
+					await finalizeCurrent();
+					await channel.send(`**Error:** ${event.message}`);
 					return { sessionId, resultText: '' };
 				}
 			}
 		}
 
 		if (buffer) {
-			await flushBuffer();
+			await flush();
 		} else if (!currentMessage) {
 			await channel.send('*(No response)*');
 		}
@@ -112,20 +140,9 @@ export async function streamToDiscord(
 	return { sessionId, resultText };
 }
 
-const TOOL_LABELS: Record<string, string> = {
-	WebSearch: 'Searching the web',
-	WebFetch: 'Fetching a page',
-	Read: 'Reading a file',
-	Edit: 'Editing a file',
-	Write: 'Writing a file',
-	Bash: 'Running a command',
-	Glob: 'Finding files',
-	Grep: 'Searching code',
-	Agent: 'Delegating to a subagent',
-};
-
-function toolLabel(name: string): string {
-	return TOOL_LABELS[name] || `Using ${name}`;
+function findSplitPoint(text: string): number {
+	const newlineAt = text.lastIndexOf('\n', SAFE_LIMIT);
+	return newlineAt > SAFE_LIMIT / 2 ? newlineAt : SAFE_LIMIT;
 }
 
 const FILE_PATH_REGEX =
