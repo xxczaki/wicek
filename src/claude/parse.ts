@@ -1,8 +1,11 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { getOptionalEnv } from '../utils/env.ts';
 import logger from '../utils/logger.ts';
 
 export type AgentEvent =
 	| { type: 'text'; content: string }
-	| { type: 'tool'; name: string; status: 'start' | 'end' }
+	| { type: 'tool'; name: string; status: 'start' | 'end'; filePath?: string }
 	| {
 			type: 'result';
 			sessionId: string;
@@ -53,10 +56,14 @@ export async function* parseClaudeStream(
 			if (Array.isArray(content)) {
 				for (const block of content) {
 					if (block.type === 'tool_use') {
+						const input = block.input as Record<string, unknown> | undefined;
+						const filePath = input?.file_path as string | undefined;
+						logger.info({ tool: block.name, filePath }, 'Tool use');
 						yield {
 							type: 'tool',
 							name: block.name as string,
 							status: 'start',
+							filePath,
 						};
 					} else if (block.type === 'text' && typeof block.text === 'string') {
 						resultText += block.text;
@@ -74,10 +81,12 @@ export async function* parseClaudeStream(
 			if (Array.isArray(content)) {
 				for (const block of content) {
 					if (block.type === 'tool_result') {
+						const savedPath = extractImageFromToolResult(block);
 						yield {
 							type: 'tool',
 							name: '',
 							status: 'end',
+							filePath: savedPath,
 						};
 					}
 				}
@@ -95,4 +104,33 @@ export async function* parseClaudeStream(
 			};
 		}
 	}
+}
+
+const MEDIA_DIR = resolve(getOptionalEnv('DATA_DIR') || '/data', 'media');
+mkdirSync(MEDIA_DIR, { recursive: true });
+
+function extractImageFromToolResult(
+	block: Record<string, unknown>,
+): string | undefined {
+	const inner = block.content as Array<Record<string, unknown>> | undefined;
+	if (!Array.isArray(inner)) return undefined;
+
+	for (const item of inner) {
+		if (item.type === 'image') {
+			const source = item.source as Record<string, string> | undefined;
+			if (source?.type === 'base64' && source.data) {
+				return saveBase64Image(source.data, source.media_type || 'image/png');
+			}
+		}
+	}
+	return undefined;
+}
+
+function saveBase64Image(data: string, mediaType: string): string {
+	const ext = mediaType.split('/')[1] || 'png';
+	const filename = `screenshot-${Date.now()}.${ext}`;
+	const filepath = join(MEDIA_DIR, filename);
+	writeFileSync(filepath, Buffer.from(data, 'base64'));
+	logger.info({ filepath }, 'Saved screenshot');
+	return filepath;
 }

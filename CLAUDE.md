@@ -86,6 +86,7 @@ API key: $GRAFANA_API_KEY
 - Use descriptive variable names, avoid single-letter variables
 - Use simple, grammatically correct American English
 - Use emojis sparingly – only where they add meaningful context
+- Place helper functions below the main exported function, not above
 
 ## Data Locations
 
