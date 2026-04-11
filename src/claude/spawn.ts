@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 
 function resolveClaudeBinary(): string {
 	const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json');
-	return pkgPath.replace('/package.json', '/cli.mjs');
+	return pkgPath.replace('/package.json', '/cli.js');
 }
 
 export interface SpawnClaudeOptions {
