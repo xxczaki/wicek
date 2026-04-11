@@ -34,7 +34,6 @@ export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
 		'--include-partial-messages',
 		'--permission-mode',
 		'auto',
-		'--chrome',
 	];
 
 	if (options.sessionId) {

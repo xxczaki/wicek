@@ -18,7 +18,7 @@ WORKDIR /app
 
 COPY --from=build /app/dist/ ./dist/
 COPY --from=prod-deps /app/node_modules/ ./node_modules/
-COPY package.json CLAUDE.md cron.json ./
+COPY package.json CLAUDE.md cron.json .mcp.json ./
 COPY .claude/ ./.claude/
 
 ENV NODE_ENV=production
