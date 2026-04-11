@@ -9,6 +9,10 @@ import { contextKey, getSession, setSession } from '../../claude/sessions.ts';
 import { spawnClaude } from '../../claude/spawn.ts';
 import { streamToDiscord } from '../../stream/discord.ts';
 import logger from '../../utils/logger.ts';
+import {
+	buildPromptWithAttachments,
+	downloadAttachments,
+} from '../attachments.ts';
 
 let busy = false;
 
@@ -107,6 +111,12 @@ export async function handleAskInteraction(
 export async function handleAskMessage(message: Message, prompt: string) {
 	if (!('send' in message.channel)) return;
 
+	let fullPrompt = prompt;
+	if (message.attachments.size > 0) {
+		const paths = await downloadAttachments(message.attachments);
+		fullPrompt = buildPromptWithAttachments(prompt, paths);
+	}
+
 	const ctx = getContextFromMessage(message);
 
 	if (
@@ -120,9 +130,9 @@ export async function handleAskMessage(message: Message, prompt: string) {
 			startMessage: message,
 		});
 		ctx.threadId = thread.id;
-		await runAgent(prompt, thread, ctx);
+		await runAgent(fullPrompt, thread, ctx);
 		return;
 	}
 
-	await runAgent(prompt, message.channel as SendableChannels, ctx);
+	await runAgent(fullPrompt, message.channel as SendableChannels, ctx);
 }
