@@ -15,8 +15,14 @@ await registerCommands(token, clientId);
 const client = createClient();
 
 client.once('ready', (c) => {
-	logger.info({ user: c.user.tag }, 'Bot ready');
+	logger.info({ user: c.user.tag, intents: c.options.intents.bitfield }, 'Bot ready');
 	initCronScheduler(client);
+});
+
+client.on('raw', (event: { t: string }) => {
+	if (event.t === 'MESSAGE_CREATE') {
+		logger.info({ eventType: event.t }, 'Raw gateway event');
+	}
 });
 
 attachInteractionHandler(client);
