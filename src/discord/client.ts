@@ -14,7 +14,12 @@ export function createClient(): Client {
 			GatewayIntentBits.MessageContent,
 			GatewayIntentBits.DirectMessages,
 		],
-		partials: [Partials.Channel, Partials.Message],
+		partials: [
+			Partials.Channel,
+			Partials.Message,
+			Partials.User,
+			Partials.GuildMember,
+		],
 		presence: {
 			activities: [{ name: 'Ready', type: ActivityType.Custom }],
 			status: PresenceUpdateStatus.Online,

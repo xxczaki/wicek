@@ -36,6 +36,8 @@ async function runAgent(
 
 	busy = true;
 	try {
+		if (channel.isTextBased()) await channel.sendTyping();
+
 		const key = contextKey(ctx);
 		const existingSession = getSession(key);
 		const controller = new AbortController();
