@@ -5,8 +5,12 @@ import {
 	Partials,
 	PresenceUpdateStatus,
 } from 'discord.js';
+import { getOptionalEnv } from '../utils/env.ts';
 
 export function createClient(): Client {
+	const version = getOptionalEnv('APP_VERSION');
+	const status = version ? `Running wicek ${version}` : 'Ready';
+
 	return new Client({
 		intents: [
 			GatewayIntentBits.Guilds,
@@ -21,7 +25,7 @@ export function createClient(): Client {
 			Partials.GuildMember,
 		],
 		presence: {
-			activities: [{ name: 'Ready', type: ActivityType.Custom }],
+			activities: [{ name: status, type: ActivityType.Custom }],
 			status: PresenceUpdateStatus.Online,
 		},
 	});
