@@ -13,6 +13,7 @@ const FLUSH_INTERVAL_MS = 1500;
 export async function streamToDiscord(
 	events: AsyncIterable<AgentEvent>,
 	channel: SendableChannels,
+	signal?: AbortSignal,
 ): Promise<{ sessionId: string; resultText: string }> {
 	let currentMessage: Message | null = null;
 	let buffer = '';
@@ -129,11 +130,13 @@ export async function streamToDiscord(
 		}
 
 		if (!gotResult && !gotError) {
-			logger.error('Claude process ended without a result event');
 			await finalizeCurrent();
-			await channel.send(
-				'**Error:** The AI process terminated unexpectedly. Please try again.',
-			);
+			if (!signal?.aborted) {
+				logger.error('Claude process ended without a result event');
+				await channel.send(
+					'**Error:** The AI process terminated unexpectedly. Please try again.',
+				);
+			}
 			return { sessionId, resultText: '' };
 		}
 

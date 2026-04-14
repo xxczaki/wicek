@@ -3,6 +3,7 @@ import logger from '../../utils/logger.ts';
 import { isAllowedUser } from '../guards.ts';
 import { handleAskInteraction } from './ask.ts';
 import { handleClear } from './clear.ts';
+import { handleStop } from './stop.ts';
 
 export function attachInteractionHandler(client: Client) {
 	client.on('interactionCreate', async (interaction: Interaction) => {
@@ -22,6 +23,9 @@ export function attachInteractionHandler(client: Client) {
 					break;
 				case 'clear':
 					await handleClear(interaction);
+					break;
+				case 'stop':
+					await handleStop(interaction);
 					break;
 				default:
 					await interaction.reply({

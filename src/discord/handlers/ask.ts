@@ -15,6 +15,13 @@ import {
 } from '../attachments.ts';
 
 let busy = false;
+let activeController: AbortController | null = null;
+
+export function stopAgent(): boolean {
+	if (!activeController) return false;
+	activeController.abort();
+	return true;
+}
 
 function getContextFromMessage(message: Message) {
 	return {
@@ -52,25 +59,32 @@ async function runAgent(
 
 		const key = contextKey(ctx);
 		const existingSession = getSession(key);
-		const controller = new AbortController();
+		activeController = new AbortController();
 
 		const { lines } = spawnClaude({
 			prompt,
 			sessionId: existingSession,
-			signal: controller.signal,
+			signal: activeController.signal,
 		});
 
 		const events = parseClaudeStream(lines);
-		const { sessionId } = await streamToDiscord(events, channel);
+		const { sessionId } = await streamToDiscord(
+			events,
+			channel,
+			activeController.signal,
+		);
 
 		if (sessionId) {
 			setSession(key, sessionId);
 		}
 	} catch (error) {
-		logger.error({ error }, 'Agent run failed');
-		await channel.send('Something went wrong.').catch(() => {});
+		if (!activeController?.signal.aborted) {
+			logger.error({ error }, 'Agent run failed');
+			await channel.send('Something went wrong.').catch(() => {});
+		}
 	} finally {
 		if (typingInterval) clearInterval(typingInterval);
+		activeController = null;
 		busy = false;
 	}
 }

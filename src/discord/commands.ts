@@ -12,7 +12,11 @@ const CLEAR_COMMAND = new SlashCommandBuilder()
 	.setName('clear')
 	.setDescription('Reset conversation context');
 
-const COMMANDS = [ASK_COMMAND, CLEAR_COMMAND];
+const STOP_COMMAND = new SlashCommandBuilder()
+	.setName('stop')
+	.setDescription('Cancel the current AI operation');
+
+const COMMANDS = [ASK_COMMAND, CLEAR_COMMAND, STOP_COMMAND];
 
 export async function registerCommands(token: string, clientId: string) {
 	const rest = new REST({ version: '10' }).setToken(token);
