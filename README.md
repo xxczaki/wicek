@@ -16,25 +16,14 @@ A minimal Node.js application that wraps the unmodified [Claude Code](https://cl
 
 ## What it does
 
-- **Discord integration** – DMs, @mentions, and threaded conversations via discord.js
-- **Claude Code wrapper** – spawns `claude -p` per request, streams NDJSON back to Discord with thinking (blockquotes), tool use, and text
+- **Discord integration** – DMs, @mentions, and threaded conversations via [discord.js](https://discord.js.org/)
+- **Claude Code wrapper** – spawns `claude -p` per request using a Pro/Max subscription (no API billing), streams NDJSON back to Discord with thinking (blockquotes), tool use, and text
 - **Browser automation** – headless Chrome sidecar with [Chrome DevTools MCP](https://github.com/nicolo-ribaudo/chrome-devtools-mcp), screenshots auto-attached to Discord
 - **Cron jobs** – GitOps-defined scheduled prompts (e.g., daily ETF updates)
 - **Custom subagents** – `.claude/agents/` for ETF analysis, infrastructure ops, Home Assistant
 - **File handling** – receives Discord attachments, sends back generated files and screenshots
 - **Self-update** – knows how to push changes through the GitOps pipeline (git -> ArgoCD)
 - **Long-term memory** – Claude Code's native auto-memory on persistent storage
-
-## Trade-offs
-
-| Pros                                                                  | Cons                                                                  |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| ~500 LOC, easy to understand and modify                               | Single concurrent request (RPi4 memory constraint)                    |
-| No custom operator, CRDs, or external dependencies beyond Claude Code | Depends on Claude Code CLI binary and its release cycle               |
-| Pro/Max subscription via official `setup-token` – no API billing      | `messageCreate` workaround needed for discord.js v14 + Node.js 24 DMs |
-| Full Claude Code feature set (tools, subagents, skills, auto-memory)  | MCP servers (context7, chrome-devtools) add startup latency           |
-| GitOps everything – config in git, state on PVC                       |                                                                       |
-| Helm chart with ArgoCD auto-sync                                      |                                                                       |
 
 ## Deployment
 
