@@ -2,7 +2,7 @@
   <img src=".github/logo.svg" width="80" alt="wicek">
 </p>
 
-# wicek
+# Wicek
 
 [![CI](https://github.com/xxczaki/wicek/actions/workflows/ci.yml/badge.svg)](https://github.com/xxczaki/wicek/actions/workflows/ci.yml)
 
@@ -12,7 +12,7 @@ A minimal Node.js application that wraps the unmodified [Claude Code](https://cl
 
 ## Motivation
 
-The openclaw-rocks operator deploys [OpenClaw](https://openclaw.rocks) as a multi-container StatefulSet with custom CRDs, init containers for tool installation, config clobbering on restarts, and 62+ restarts in 9 days on a Raspberry Pi. Most of its features went unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
+[OpenClaw](https://openclaw.rocks) is a feature-rich AI agent platform, but deploying it via the [openclaw-rocks](https://github.com/openclaw-rocks) Kubernetes operator introduces significant complexity – custom CRDs, multi-container pods, init containers, and a large operational surface. Most of those features went unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
 
 ## What it does
 
@@ -27,14 +27,14 @@ The openclaw-rocks operator deploys [OpenClaw](https://openclaw.rocks) as a mult
 
 ## Trade-offs
 
-| Pros | Cons |
-|---|---|
-| ~500 LOC, easy to understand and modify | Single concurrent request (RPi4 memory constraint) |
-| No custom operator, CRDs, or external dependencies beyond Claude Code | Depends on Claude Code CLI binary and its release cycle |
-| Pro/Max subscription via official `setup-token` – no API billing | `messageCreate` workaround needed for discord.js v14 + Node.js 24 DMs |
-| Full Claude Code feature set (tools, subagents, skills, auto-memory) | MCP servers (context7, chrome-devtools) add startup latency |
-| GitOps everything – config in git, state on PVC | |
-| Helm chart with ArgoCD auto-sync | |
+| Pros                                                                  | Cons                                                                  |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ~500 LOC, easy to understand and modify                               | Single concurrent request (RPi4 memory constraint)                    |
+| No custom operator, CRDs, or external dependencies beyond Claude Code | Depends on Claude Code CLI binary and its release cycle               |
+| Pro/Max subscription via official `setup-token` – no API billing      | `messageCreate` workaround needed for discord.js v14 + Node.js 24 DMs |
+| Full Claude Code feature set (tools, subagents, skills, auto-memory)  | MCP servers (context7, chrome-devtools) add startup latency           |
+| GitOps everything – config in git, state on PVC                       |                                                                       |
+| Helm chart with ArgoCD auto-sync                                      |                                                                       |
 
 ## Deployment
 
@@ -58,14 +58,14 @@ pnpm lint && pnpm tsc
 
 ### Environment variables
 
-| Variable | Description |
-|---|---|
-| `DISCORD_TOKEN` | Discord bot token |
-| `CLIENT_ID` | Discord application ID |
-| `ALLOWED_USER_IDS` | Comma-separated Discord user IDs |
-| `DATA_DIR` | Writable data directory (default: `/data`) |
+| Variable                  | Description                                |
+| ------------------------- | ------------------------------------------ |
+| `DISCORD_TOKEN`           | Discord bot token                          |
+| `CLIENT_ID`               | Discord application ID                     |
+| `ALLOWED_USER_IDS`        | Comma-separated Discord user IDs           |
+| `DATA_DIR`                | Writable data directory (default: `/data`) |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Long-lived token from `claude setup-token` |
-| `GRAFANA_API_KEY` | Grafana Cloud API key (optional) |
+| `GRAFANA_API_KEY`         | Grafana Cloud API key (optional)           |
 
 ## AI disclosure
 
