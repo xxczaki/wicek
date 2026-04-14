@@ -8,11 +8,11 @@
 
 > Task-focused AI assistant running as a Discord bot, powered by Claude Code
 
-A minimal Node.js application that wraps the unmodified [Claude Code](https://claude.ai/code) CLI binary and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([OpenClaw](https://openclaw.rocks)) with something lean and maintainable.
+A minimal Node.js application that wraps the unmodified [Claude Code](https://claude.ai/code) CLI binary and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([openclaw-rocks](https://github.com/openclaw-rocks)) with something lean and maintainable.
 
 ## Motivation
 
-OpenClaw ships as a multi-container StatefulSet with a custom operator, CRDs, init containers for tool installation, config clobbering on restarts, and 62+ restarts in 9 days on a Raspberry Pi. Most of its features went unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
+The openclaw-rocks operator deploys [OpenClaw](https://openclaw.rocks) as a multi-container StatefulSet with custom CRDs, init containers for tool installation, config clobbering on restarts, and 62+ restarts in 9 days on a Raspberry Pi. Most of its features went unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
 
 ## What it does
 
