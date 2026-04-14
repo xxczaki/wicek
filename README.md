@@ -15,13 +15,13 @@ A minimal Node.js application that wraps the unmodified [Claude Code](https://cl
 
 ## Motivation
 
-[OpenClaw](https://openclaw.rocks) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
+[OpenClaw](https://openclaw.ai/) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
 
 ## What it does
 
 - **Discord integration** – DMs, @mentions, and threaded conversations via [discord.js](https://discord.js.org/)
 - **Claude Code wrapper** – spawns `claude -p` per request using a Pro/Max subscription (no need for API billing), streams NDJSON back to Discord with thinking (blockquotes), tool use, and text
-- **Browser automation** – headless Chrome sidecar with [Chrome DevTools MCP](https://github.com/nicolo-ribaudo/chrome-devtools-mcp), screenshots auto-attached to Discord
+- **Browser automation** – headless Chrome sidecar with [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), screenshots auto-attached to Discord
 - **Cron jobs** – GitOps-defined scheduled prompts (e.g., daily ETF updates)
 - **Custom subagents** – `.claude/agents/` for ETF analysis, infrastructure ops, Home Assistant
 - **File handling** – receives Discord attachments, sends back generated files and screenshots
