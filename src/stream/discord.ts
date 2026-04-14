@@ -21,6 +21,8 @@ export async function streamToDiscord(
 	let resultText = '';
 	let allText = '';
 	let isThinking = false;
+	let gotResult = false;
+	let gotError = false;
 	const writtenFiles: string[] = [];
 
 	async function flush() {
@@ -99,7 +101,8 @@ export async function streamToDiscord(
 						if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) await flush();
 					}
 
-					if (event.filePath) writtenFiles.push(event.filePath);
+					if (event.filePath && event.name !== 'Read')
+						writtenFiles.push(event.filePath);
 					break;
 				}
 
@@ -111,16 +114,27 @@ export async function streamToDiscord(
 				case 'result': {
 					sessionId = event.sessionId;
 					resultText = event.text;
+					gotResult = true;
 					break;
 				}
 
 				case 'error': {
+					gotError = true;
 					logger.error({ message: event.message }, 'Agent error');
 					await finalizeCurrent();
 					await channel.send(`**Error:** ${event.message}`);
 					return { sessionId, resultText: '' };
 				}
 			}
+		}
+
+		if (!gotResult && !gotError) {
+			logger.error('Claude process ended without a result event');
+			await finalizeCurrent();
+			await channel.send(
+				'**Error:** The AI process terminated unexpectedly. Please try again.',
+			);
+			return { sessionId, resultText: '' };
 		}
 
 		if (buffer) {
@@ -167,7 +181,11 @@ function extractFilePaths(text: string): string[] {
 	const matches = text.match(FILE_PATH_REGEX) || [];
 	return [...new Set(matches)].filter((path) => {
 		const ext = path.slice(path.lastIndexOf('.'));
-		return SENDABLE_EXTENSIONS.has(ext) && existsSync(path);
+		return (
+			SENDABLE_EXTENSIONS.has(ext) &&
+			!path.includes('/attachments/') &&
+			existsSync(path)
+		);
 	});
 }
 

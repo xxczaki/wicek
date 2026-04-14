@@ -39,6 +39,14 @@ async function runAgent(
 	}
 
 	busy = true;
+
+	const TYPING_INTERVAL_MS = 8_000;
+	const typingInterval = channel.isTextBased()
+		? setInterval(() => {
+				channel.sendTyping().catch(() => {});
+			}, TYPING_INTERVAL_MS)
+		: undefined;
+
 	try {
 		if (channel.isTextBased()) await channel.sendTyping();
 
@@ -62,6 +70,7 @@ async function runAgent(
 		logger.error({ error }, 'Agent run failed');
 		await channel.send('Something went wrong.').catch(() => {});
 	} finally {
+		if (typingInterval) clearInterval(typingInterval);
 		busy = false;
 	}
 }
