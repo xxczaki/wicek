@@ -11,7 +11,7 @@
 A minimal Node.js application that wraps the unmodified [Claude Code](https://claude.ai/code) CLI binary and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([openclaw-rocks](https://github.com/openclaw-rocks)) with something lean and maintainable.
 
 > [!WARNING]
-> This project is experimental. Expect breaking changes, rough edges, and incomplete features.
+> This project is experimental and should not be used direcly as-is.
 
 ## Motivation
 
