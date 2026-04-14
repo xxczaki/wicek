@@ -12,7 +12,7 @@ A minimal Node.js application that wraps the unmodified [Claude Code](https://cl
 
 ## Motivation
 
-[OpenClaw](https://openclaw.rocks) is a feature-rich AI agent platform, but deploying it via the [openclaw-rocks](https://github.com/openclaw-rocks) Kubernetes operator introduces significant complexity – custom CRDs, multi-container pods, init containers, and a large operational surface. Most of those features went unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
+[OpenClaw](https://openclaw.rocks) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
 
 ## What it does
 
