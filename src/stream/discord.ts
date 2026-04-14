@@ -28,6 +28,23 @@ export async function streamToDiscord(
 
 	async function flush() {
 		if (!buffer) return;
+
+		while (buffer.length > SAFE_LIMIT) {
+			const splitAt = findSplitPoint(buffer);
+			const chunk = buffer.slice(0, splitAt);
+			buffer = buffer.slice(splitAt);
+			if (buffer.startsWith('\n')) buffer = buffer.slice(1);
+			if (isThinking && !buffer.startsWith('>')) buffer = `> ${buffer}`;
+
+			if (currentMessage) {
+				await currentMessage.edit(chunk);
+			} else {
+				await channel.send(chunk);
+			}
+			currentMessage = null;
+		}
+
+		if (!buffer) return;
 		if (!currentMessage) {
 			currentMessage = await channel.send(buffer);
 		} else {
@@ -54,7 +71,11 @@ export async function streamToDiscord(
 					buffer += event.content.replaceAll('\n', '\n> ');
 					allText += event.content;
 
-					if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) await flush();
+					if (
+						buffer.length > SAFE_LIMIT ||
+						Date.now() - lastFlush >= FLUSH_INTERVAL_MS
+					)
+						await flush();
 					break;
 				}
 
@@ -66,20 +87,11 @@ export async function streamToDiscord(
 					buffer += event.content;
 					allText += event.content;
 
-					if (buffer.length > SAFE_LIMIT) {
-						const splitAt = findSplitPoint(buffer);
-						const chunk = buffer.slice(0, splitAt);
-						buffer = buffer.slice(splitAt);
-
-						if (currentMessage) {
-							await currentMessage.edit(chunk);
-						} else {
-							await channel.send(chunk);
-						}
-						currentMessage = null;
-					} else if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) {
+					if (
+						buffer.length > SAFE_LIMIT ||
+						Date.now() - lastFlush >= FLUSH_INTERVAL_MS
+					)
 						await flush();
-					}
 					break;
 				}
 
@@ -99,7 +111,11 @@ export async function streamToDiscord(
 						lastFlush = Date.now();
 					} else {
 						buffer += toolLine;
-						if (Date.now() - lastFlush >= FLUSH_INTERVAL_MS) await flush();
+						if (
+							buffer.length > SAFE_LIMIT ||
+							Date.now() - lastFlush >= FLUSH_INTERVAL_MS
+						)
+							await flush();
 					}
 
 					if (event.filePath && event.name !== 'Read')
