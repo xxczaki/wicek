@@ -5,9 +5,7 @@ export async function handleStop(interaction: ChatInputCommandInteraction) {
 	const stopped = stopAgent();
 
 	await interaction.reply({
-		content: stopped
-			? 'Stopped.'
-			: 'Nothing is running.',
+		content: stopped ? 'Stopped.' : 'Nothing is running.',
 		flags: ['Ephemeral'],
 	});
 }
