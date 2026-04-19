@@ -11,7 +11,7 @@
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.89",
+    "@anthropic-ai/claude-code": "^2.1.114",
     "discord.js": "^14.26.2",
     "node-cron": "^3.0.3",
     "pino": "^10.3.1"
