@@ -1,13 +1,24 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import logger from '../utils/logger.ts';
 
 const require = createRequire(import.meta.url);
 
-function resolveClaudeBinary(): string {
+function resolveClaudeBinary(): { command: string; prefixArgs: string[] } {
 	const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json');
-	return pkgPath.replace('/package.json', '/cli.js');
+	const pkg = require('@anthropic-ai/claude-code/package.json') as {
+		bin?: string | Record<string, string>;
+	};
+	const binField =
+		typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.claude || 'cli.js';
+	const binPath = join(dirname(pkgPath), binField);
+
+	if (binPath.endsWith('.js')) {
+		return { command: 'node', prefixArgs: [binPath] };
+	}
+	return { command: binPath, prefixArgs: [] };
 }
 
 export interface SpawnClaudeOptions {
@@ -22,10 +33,10 @@ export interface ClaudeProcess {
 }
 
 export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
-	const claudeBin = resolveClaudeBinary();
+	const { command, prefixArgs } = resolveClaudeBinary();
 
 	const args = [
-		claudeBin,
+		...prefixArgs,
 		'-p',
 		options.prompt,
 		'--output-format',
@@ -42,7 +53,7 @@ export function spawnClaude(options: SpawnClaudeOptions): ClaudeProcess {
 
 	logger.debug({ sessionId: options.sessionId }, 'Spawning Claude process');
 
-	const child = spawn('node', args, {
+	const child = spawn(command, args, {
 		stdio: ['ignore', 'pipe', 'pipe'],
 		env: { ...process.env, HOME: process.env.HOME },
 		signal: options.signal,
