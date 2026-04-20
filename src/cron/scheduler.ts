@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Client, User } from 'discord.js';
-import cron from 'node-cron';
+import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { parseClaudeStream } from '../claude/parse.ts';
 import { spawnClaude } from '../claude/spawn.ts';
 import logger from '../utils/logger.ts';
@@ -14,7 +14,7 @@ interface CronJobDef {
 	targetUserId: string;
 }
 
-const tasks: cron.ScheduledTask[] = [];
+const tasks: ScheduledTask[] = [];
 
 function loadCronConfig(configPath: string): CronJobDef[] {
 	try {
@@ -99,7 +99,7 @@ export function initCronScheduler(client: Client, configPath?: string) {
 	}
 
 	for (const job of jobs) {
-		if (!cron.validate(job.schedule)) {
+		if (!validate(job.schedule)) {
 			logger.error(
 				{ name: job.name, schedule: job.schedule },
 				'Invalid cron schedule',
@@ -107,7 +107,7 @@ export function initCronScheduler(client: Client, configPath?: string) {
 			continue;
 		}
 
-		const task = cron.schedule(
+		const task = schedule(
 			job.schedule,
 			() => {
 				executeJob(job, client).catch((error) => {
