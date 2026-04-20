@@ -6,7 +6,10 @@ import logger from '../utils/logger.ts';
 
 const require = createRequire(import.meta.url);
 
-function resolveClaudeBinary(): { command: string; prefixArgs: string[] } {
+export function resolveClaudeBinary(): {
+	command: string;
+	prefixArgs: string[];
+} {
 	const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json');
 	const pkg = require('@anthropic-ai/claude-code/package.json') as {
 		bin?: string | Record<string, string>;

@@ -28,9 +28,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsc
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
   deploy:
     if: github.ref == 'refs/heads/main'
-    needs: [lint, typecheck]
+    needs: [lint, typecheck, test]
     permissions:
       contents: read
       packages: write

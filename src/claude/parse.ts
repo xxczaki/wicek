@@ -144,7 +144,6 @@ function formatToolInput(
 }
 
 const MEDIA_DIR = resolve(getOptionalEnv('DATA_DIR') || '/data', 'media');
-mkdirSync(MEDIA_DIR, { recursive: true });
 
 function extractImageFromToolResult(
 	block: Record<string, unknown>,
@@ -164,6 +163,7 @@ function extractImageFromToolResult(
 }
 
 function saveBase64Image(data: string, mediaType: string): string {
+	mkdirSync(MEDIA_DIR, { recursive: true });
 	const ext = mediaType.split('/')[1] || 'png';
 	const filename = `screenshot-${Date.now()}.${ext}`;
 	const filepath = join(MEDIA_DIR, filename);

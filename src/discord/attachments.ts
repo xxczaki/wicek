@@ -11,9 +11,8 @@ const ATTACHMENTS_DIR = join(
 	'attachments',
 );
 
-mkdirSync(ATTACHMENTS_DIR, { recursive: true });
-
 async function downloadAttachment(attachment: Attachment): Promise<string> {
+	mkdirSync(ATTACHMENTS_DIR, { recursive: true });
 	const filename = `${attachment.id}-${attachment.name}`;
 	const filepath = join(ATTACHMENTS_DIR, filename);
 

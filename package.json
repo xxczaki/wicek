@@ -8,6 +8,7 @@
     "build": "node esbuild.js",
     "dev": "node esbuild.js && node --env-file=.env dist/index.js | pino-pretty",
     "lint": "biome check --write ./src",
+    "test": "node --test --experimental-strip-types 'src/**/*.test.ts'",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
