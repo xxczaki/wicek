@@ -12,7 +12,7 @@
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.119",
+    "@anthropic-ai/claude-code": "^2.1.120",
     "discord.js": "^14.26.3",
     "node-cron": "^4.2.1",
     "pino": "^10.3.1"
