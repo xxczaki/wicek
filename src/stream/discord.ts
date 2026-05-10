@@ -9,6 +9,7 @@ import logger from '../utils/logger.ts';
 
 const SAFE_LIMIT = 1900;
 const FLUSH_INTERVAL_MS = 1500;
+const TOOL_INPUT_LIMIT = 200;
 
 export async function streamToDiscord(
 	events: AsyncIterable<AgentEvent>,
@@ -64,7 +65,7 @@ export async function streamToDiscord(
 			switch (event.type) {
 				case 'thinking': {
 					if (!isThinking && event.content.trim()) {
-						if (buffer && !buffer.endsWith('\n')) buffer += '\n';
+						buffer = ensureBlankLine(buffer);
 						buffer += '> ';
 						isThinking = true;
 					}
@@ -81,7 +82,8 @@ export async function streamToDiscord(
 
 				case 'text': {
 					if (isThinking) {
-						buffer += '\n\n';
+						buffer = ensureLineStart(buffer);
+						buffer += '\n';
 						isThinking = false;
 					}
 					buffer += event.content;
@@ -97,14 +99,17 @@ export async function streamToDiscord(
 
 				case 'tool_start': {
 					if (isThinking) {
-						buffer += '\n\n';
+						buffer = ensureLineStart(buffer);
+						buffer += '\n';
 						isThinking = false;
+					} else {
+						buffer = ensureLineStart(buffer);
 					}
 
 					const label = event.input
-						? `\`${event.name}\` ${event.input}`
+						? `\`${event.name}\` ${truncate(event.input, TOOL_INPUT_LIMIT)}`
 						: `\`${event.name}\``;
-					const toolLine = `> ${label}\n`;
+					const toolLine = `-# ${label}\n`;
 
 					if (!buffer && !currentMessage) {
 						currentMessage = await channel.send(toolLine);
@@ -176,6 +181,23 @@ export async function streamToDiscord(
 function findSplitPoint(text: string): number {
 	const newlineAt = text.lastIndexOf('\n', SAFE_LIMIT);
 	return newlineAt > SAFE_LIMIT / 2 ? newlineAt : SAFE_LIMIT;
+}
+
+function ensureLineStart(buf: string): string {
+	if (!buf || buf.endsWith('\n')) return buf;
+	return `${buf}\n`;
+}
+
+function ensureBlankLine(buf: string): string {
+	if (!buf) return buf;
+	if (buf.endsWith('\n\n')) return buf;
+	if (buf.endsWith('\n')) return `${buf}\n`;
+	return `${buf}\n\n`;
+}
+
+function truncate(text: string, limit: number): string {
+	if (text.length <= limit) return text;
+	return `${text.slice(0, limit - 1)}…`;
 }
 
 const FILE_PATH_REGEX =

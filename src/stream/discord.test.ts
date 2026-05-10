@@ -114,6 +114,99 @@ test('stays silent when stream ends without result but was aborted', async () =>
 	assert.equal(errorMessages.length, 0);
 });
 
+test('tool_start after text always lands on a fresh line', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'text', content: 'Let me check the repos first.' },
+			{ type: 'tool_start', name: 'Bash', input: 'gh api repos/foo/bar' },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.ok(
+		!/[^\n]-# /.test(final),
+		`tool line must start at column 0, got: ${JSON.stringify(final)}`,
+	);
+	assert.ok(
+		final.includes('\n-# `Bash` gh api repos/foo/bar'),
+		`expected separated tool line, got: ${JSON.stringify(final)}`,
+	);
+});
+
+test('consecutive text events stream without inserted newlines', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'text', content: 'Hello ' },
+			{ type: 'text', content: 'world' },
+			{
+				type: 'result',
+				sessionId: 's',
+				cost: 0,
+				turns: 1,
+				text: 'Hello world',
+			},
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.equal(final, 'Hello world');
+});
+
+test('tool lines use small-text prefix, not blockquote', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'tool_start', name: 'Read', input: '/tmp/x.txt' },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.ok(
+		final.startsWith('-# '),
+		`expected -# prefix for tool, got: ${JSON.stringify(final)}`,
+	);
+	assert.ok(!final.startsWith('> '), 'tool lines must not use > blockquote');
+});
+
+test('tool input longer than the limit is truncated with an ellipsis', async () => {
+	const { channel, sent } = createMockChannel();
+	const longInput = 'a'.repeat(500);
+	await streamToDiscord(
+		events(
+			{ type: 'tool_start', name: 'Bash', input: longInput },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.ok(final.includes('…'), 'expected ellipsis for truncated tool input');
+	assert.ok(
+		final.length < 300,
+		`expected truncated message, got length ${final.length}`,
+	);
+});
+
+test('thinking → text transition leaves a blank line between blocks', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'thinking', content: 'pondering' },
+			{ type: 'text', content: 'answer' },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: 'answer' },
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.ok(
+		/> pondering\n\nanswer/.test(final),
+		`expected blank line between thinking and text, got: ${JSON.stringify(final)}`,
+	);
+});
+
 test('error event is reported and stops the stream', async () => {
 	const { channel, sent } = createMockChannel();
 	await streamToDiscord(
