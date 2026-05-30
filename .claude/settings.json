@@ -1,1 +1,3 @@
-{}
+{
+  "enabledMcpjsonServers": ["context7", "chrome-devtools", "home-assistant"]
+}
