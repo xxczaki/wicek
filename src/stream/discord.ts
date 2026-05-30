@@ -4,7 +4,7 @@ import {
 	type Message,
 	type SendableChannels,
 } from 'discord.js';
-import type { AgentEvent } from '../claude/parse.ts';
+import type { AgentEvent } from '../claude/events.ts';
 import logger from '../utils/logger.ts';
 
 const SAFE_LIMIT = 1900;

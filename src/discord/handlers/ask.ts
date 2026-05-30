@@ -4,9 +4,8 @@ import {
 	type Message,
 	type SendableChannels,
 } from 'discord.js';
-import { parseClaudeStream } from '../../claude/parse.ts';
+import { streamAgent } from '../../claude/agent.ts';
 import { contextKey, getSession, setSession } from '../../claude/sessions.ts';
-import { spawnClaude } from '../../claude/spawn.ts';
 import { streamToDiscord } from '../../stream/discord.ts';
 import logger from '../../utils/logger.ts';
 import {
@@ -61,13 +60,12 @@ async function runAgent(
 		const existingSession = getSession(key);
 		activeController = new AbortController();
 
-		const { lines } = spawnClaude({
+		const events = streamAgent({
 			prompt,
 			sessionId: existingSession,
-			signal: activeController.signal,
+			abortController: activeController,
 		});
 
-		const events = parseClaudeStream(lines);
 		const { sessionId } = await streamToDiscord(
 			events,
 			channel,

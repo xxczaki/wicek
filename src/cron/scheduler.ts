@@ -2,8 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Client, User } from 'discord.js';
 import { type ScheduledTask, schedule, validate } from 'node-cron';
-import { parseClaudeStream } from '../claude/parse.ts';
-import { spawnClaude } from '../claude/spawn.ts';
+import { streamAgent } from '../claude/agent.ts';
 import logger from '../utils/logger.ts';
 
 interface CronJobDef {
@@ -41,8 +40,7 @@ async function executeJob(job: CronJobDef, client: Client) {
 	}
 
 	try {
-		const { lines } = spawnClaude({ prompt: job.prompt });
-		const events = parseClaudeStream(lines);
+		const events = streamAgent({ prompt: job.prompt });
 
 		let text = '';
 		for await (const event of events) {

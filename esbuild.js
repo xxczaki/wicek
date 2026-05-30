@@ -13,7 +13,7 @@ const buildOptions = {
 	target: 'node24',
 	external: [
 		'discord.js',
-		'@anthropic-ai/claude-code',
+		'@anthropic-ai/claude-agent-sdk',
 		'pino',
 		'node-cron',
 	],

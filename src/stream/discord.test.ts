@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Message, SendableChannels } from 'discord.js';
-import type { AgentEvent } from '../claude/parse.ts';
+import type { AgentEvent } from '../claude/events.ts';
 import { streamToDiscord } from './discord.ts';
 
 interface SentRecord {

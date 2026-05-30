@@ -8,7 +8,7 @@
 
 > Task-focused AI assistant running as a Discord bot, powered by Claude Code
 
-A minimal Node.js application that wraps the unmodified [Claude Code](https://claude.ai/code) CLI binary and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([openclaw-rocks](https://github.com/openclaw-rocks)) with something lean and maintainable.
+A minimal Node.js application that drives the [Claude Agent SDK](https://docs.claude.com/en/docs/agent-sdk) and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([openclaw-rocks](https://github.com/openclaw-rocks)) with something lean and maintainable.
 
 > [!WARNING]
 > This project is experimental and should not be used directly as-is.
@@ -20,7 +20,7 @@ A minimal Node.js application that wraps the unmodified [Claude Code](https://cl
 ## What it does
 
 - **Discord integration** – DMs, @mentions, and threaded conversations via [discord.js](https://discord.js.org/)
-- **Claude Code wrapper** – spawns `claude -p` per request using a Pro/Max subscription (no need for API billing), streams NDJSON back to Discord with thinking (blockquotes), tool use, and text
+- **Claude Agent SDK** – runs `query()` per request on a Pro/Max subscription (OAuth token, no API key), streaming results back to Discord with thinking (blockquotes), tool use, and text
 - **Browser automation** – headless Chrome sidecar with [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), screenshots auto-attached to Discord
 - **Cron jobs** – GitOps-defined scheduled prompts (e.g., daily ETF updates)
 - **Custom subagents** – `.claude/agents/` for ETF analysis, infrastructure ops, Home Assistant
