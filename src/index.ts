@@ -1,3 +1,4 @@
+import { initConsolidation } from './claude/consolidation.ts';
 import { flushSessions } from './claude/sessions.ts';
 import { initCronScheduler, stopCronScheduler } from './cron/scheduler.ts';
 import { createClient } from './discord/client.ts';
@@ -17,6 +18,7 @@ const client = createClient();
 client.once('ready', (c) => {
 	logger.info({ user: c.user.tag }, 'Bot ready');
 	initCronScheduler(client);
+	initConsolidation(client);
 });
 
 attachInteractionHandler(client);
