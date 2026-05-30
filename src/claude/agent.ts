@@ -7,6 +7,7 @@ export type { AgentEvent } from './events.ts';
 export interface StreamAgentOptions {
 	prompt: string;
 	sessionId?: string;
+	model?: string;
 	abortController?: AbortController;
 }
 
@@ -19,6 +20,7 @@ export async function* streamAgent(
 		prompt: options.prompt,
 		options: {
 			resume: options.sessionId,
+			model: options.model,
 			includePartialMessages: true,
 			permissionMode: 'auto',
 			settingSources: ['user', 'project', 'local'],

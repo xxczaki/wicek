@@ -6,6 +6,7 @@ import logger from '../utils/logger.ts';
 interface SessionEntry {
 	sessionId: string;
 	lastUsed: number;
+	lastConsolidated?: number;
 }
 
 const sessions = new Map<string, SessionEntry>();
@@ -72,6 +73,29 @@ export function setSession(key: string, sessionId: string) {
 export function clearSession(key: string) {
 	load();
 	sessions.delete(key);
+	save();
+}
+
+export function pendingConsolidation(
+	idleMs: number,
+): Array<{ key: string; sessionId: string }> {
+	load();
+	const now = Date.now();
+	const pending: Array<{ key: string; sessionId: string }> = [];
+	for (const [key, entry] of sessions) {
+		const idle = now - entry.lastUsed > idleMs;
+		const dirty = entry.lastUsed > (entry.lastConsolidated ?? 0);
+		if (idle && dirty) pending.push({ key, sessionId: entry.sessionId });
+	}
+	return pending;
+}
+
+export function markConsolidated(key: string) {
+	load();
+	const entry = sessions.get(key);
+	if (!entry) return;
+
+	entry.lastConsolidated = Date.now();
 	save();
 }
 
