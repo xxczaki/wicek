@@ -7,13 +7,6 @@
     "chrome-devtools": {
       "command": "npx",
       "args": ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://localhost:9222"]
-    },
-    "home-assistant": {
-      "type": "sse",
-      "url": "http://homeassistant.wicek.svc.cluster.local:8123/mcp_server/sse",
-      "headers": {
-        "Authorization": "Bearer ${HA_TOKEN}"
-      }
     }
   }
 }
