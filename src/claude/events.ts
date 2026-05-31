@@ -104,6 +104,14 @@ function formatToolInput(
 	if (name === 'Grep') return (input.pattern as string) || '';
 	if (name === 'WebFetch') return (input.url as string) || '';
 	if (name === 'WebSearch') return (input.query as string) || '';
+	if (name === 'Skill')
+		return (
+			(input.command as string) ||
+			(input.name as string) ||
+			(input.skill as string) ||
+			''
+		);
+	if (name === 'Task') return (input.subagent_type as string) || '';
 	if (name.startsWith('mcp__')) return JSON.stringify(input).slice(0, 100);
 	return '';
 }

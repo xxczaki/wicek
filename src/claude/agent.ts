@@ -11,6 +11,20 @@ export interface StreamAgentOptions {
 	abortController?: AbortController;
 }
 
+// The Agent SDK does not expand ${VARS} in .mcp.json headers, so the Home
+// Assistant MCP server is configured here with the real token at runtime.
+const HOME_ASSISTANT_MCP = process.env.HA_TOKEN
+	? {
+			'home-assistant': {
+				type: 'sse' as const,
+				url:
+					process.env.HA_MCP_URL ??
+					'http://homeassistant.wicek.svc.cluster.local:8123/mcp_server/sse',
+				headers: { Authorization: `Bearer ${process.env.HA_TOKEN}` },
+			},
+		}
+	: undefined;
+
 export async function* streamAgent(
 	options: StreamAgentOptions,
 ): AsyncGenerator<AgentEvent> {
@@ -23,7 +37,8 @@ export async function* streamAgent(
 			prompt: options.prompt,
 			options: {
 				resume,
-				model: options.model,
+				model: options.model ?? 'opus',
+				mcpServers: HOME_ASSISTANT_MCP,
 				includePartialMessages: true,
 				permissionMode: 'auto',
 				settingSources: ['user', 'project', 'local'],
