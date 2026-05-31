@@ -26,6 +26,7 @@ export async function streamToDiscord(
 	let gotResult = false;
 	let gotError = false;
 	const writtenFiles: string[] = [];
+	const recentTools: string[] = [];
 
 	async function flush() {
 		if (!buffer) return;
@@ -64,19 +65,9 @@ export async function streamToDiscord(
 		for await (const event of events) {
 			switch (event.type) {
 				case 'thinking': {
-					if (!isThinking && event.content.trim()) {
-						buffer = ensureBlankLine(buffer);
-						buffer += '> ';
-						isThinking = true;
-					}
-					buffer += event.content.replaceAll('\n', '\n> ');
+					// Internal reasoning — kept off Discord, but still tracked for
+					// file-path extraction in the final output.
 					allText += event.content;
-
-					if (
-						buffer.length > SAFE_LIMIT ||
-						Date.now() - lastFlush >= FLUSH_INTERVAL_MS
-					)
-						await flush();
 					break;
 				}
 
@@ -98,18 +89,16 @@ export async function streamToDiscord(
 				}
 
 				case 'tool_start': {
-					if (isThinking) {
-						buffer = ensureLineStart(buffer);
-						buffer += '\n';
-						isThinking = false;
-					} else {
-						buffer = ensureLineStart(buffer);
-					}
+					buffer = ensureLineStart(buffer);
 
-					const label = event.input
-						? `\`${event.name}\` ${truncate(event.input, TOOL_INPUT_LIMIT)}`
-						: `\`${event.name}\``;
-					const toolLine = `-# ${label}\n`;
+					// Keep a verbose record for error diagnostics, but render only
+					// a compact tool/skill name on the happy path.
+					recentTools.push(
+						event.input
+							? `\`${event.name}\` ${truncate(event.input, TOOL_INPUT_LIMIT)}`
+							: `\`${event.name}\``,
+					);
+					const toolLine = `-# ${compactToolLabel(event.name, event.input)}\n`;
 
 					if (!buffer && !currentMessage) {
 						currentMessage = await channel.send(toolLine);
@@ -144,7 +133,15 @@ export async function streamToDiscord(
 					gotError = true;
 					logger.error({ message: event.message }, 'Agent error');
 					await finalizeCurrent();
-					await channel.send(`**Error:** ${event.message}`);
+					let detail = `**Error:** ${event.message}`;
+					if (recentTools.length > 0) {
+						const trail = recentTools
+							.slice(-5)
+							.map((t) => `-# ${t}`)
+							.join('\n');
+						detail += `\n\n**What it was doing:**\n${trail}`;
+					}
+					await channel.send(truncate(detail, SAFE_LIMIT));
 					return { sessionId, resultText: '' };
 				}
 			}
@@ -188,16 +185,15 @@ function ensureLineStart(buf: string): string {
 	return `${buf}\n`;
 }
 
-function ensureBlankLine(buf: string): string {
-	if (!buf) return buf;
-	if (buf.endsWith('\n\n')) return buf;
-	if (buf.endsWith('\n')) return `${buf}\n`;
-	return `${buf}\n\n`;
-}
-
 function truncate(text: string, limit: number): string {
 	if (text.length <= limit) return text;
 	return `${text.slice(0, limit - 1)}…`;
+}
+
+function compactToolLabel(name: string, input: string): string {
+	if (name === 'Skill') return input || 'Skill';
+	if (name.startsWith('mcp__')) return name.slice(5).split('__').join(' · ');
+	return name;
 }
 
 const FILE_PATH_REGEX =

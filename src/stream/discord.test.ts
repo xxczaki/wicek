@@ -71,27 +71,31 @@ test('splits text that exceeds safe limit across messages', async () => {
 	}
 });
 
-test('very long thinking block stays under Discord limit and keeps quote prefix', async () => {
+test('thinking is not rendered to Discord', async () => {
 	const { channel, sent } = createMockChannel();
 	const longThinking = 'thought line\n'.repeat(300);
 	await streamToDiscord(
 		events(
 			{ type: 'thinking', content: longThinking },
-			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+			{ type: 'text', content: 'final answer' },
+			{
+				type: 'result',
+				sessionId: 's',
+				cost: 0,
+				turns: 1,
+				text: 'final answer',
+			},
 		),
 		channel,
 	);
 	const allMessages = [...sent.send, ...sent.edits];
 	for (const msg of allMessages) {
-		assert.ok(msg.length <= 2000, `message length ${msg.length} > 2000`);
-	}
-	const nonEmpty = allMessages.filter((m) => m.length > 0);
-	for (const msg of nonEmpty) {
 		assert.ok(
-			msg.startsWith('>'),
-			`quote continuation missing: ${msg.slice(0, 40)}`,
+			!msg.includes('thought line'),
+			`thinking leaked to Discord: ${msg.slice(0, 40)}`,
 		);
 	}
+	assert.equal(allMessages.at(-1) ?? '', 'final answer');
 });
 
 test('reports error when stream ends without result', async () => {
@@ -130,8 +134,12 @@ test('tool_start after text always lands on a fresh line', async () => {
 		`tool line must start at column 0, got: ${JSON.stringify(final)}`,
 	);
 	assert.ok(
-		final.includes('\n-# `Bash` gh api repos/foo/bar'),
-		`expected separated tool line, got: ${JSON.stringify(final)}`,
+		final.includes('\n-# Bash'),
+		`expected separated compact tool line, got: ${JSON.stringify(final)}`,
+	);
+	assert.ok(
+		!final.includes('gh api'),
+		`tool command must not show on the happy path: ${JSON.stringify(final)}`,
 	);
 });
 
@@ -172,7 +180,7 @@ test('tool lines use small-text prefix, not blockquote', async () => {
 	assert.ok(!final.startsWith('> '), 'tool lines must not use > blockquote');
 });
 
-test('tool input longer than the limit is truncated with an ellipsis', async () => {
+test('tool input is not shown on the happy path (compact name only)', async () => {
 	const { channel, sent } = createMockChannel();
 	const longInput = 'a'.repeat(500);
 	await streamToDiscord(
@@ -183,14 +191,53 @@ test('tool input longer than the limit is truncated with an ellipsis', async () 
 		channel,
 	);
 	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
-	assert.ok(final.includes('…'), 'expected ellipsis for truncated tool input');
 	assert.ok(
-		final.length < 300,
-		`expected truncated message, got length ${final.length}`,
+		!final.includes('aaaa'),
+		`tool input leaked: ${JSON.stringify(final.slice(0, 60))}`,
+	);
+	assert.ok(
+		final.includes('-# Bash'),
+		`expected compact Bash label, got: ${JSON.stringify(final)}`,
 	);
 });
 
-test('thinking → text transition leaves a blank line between blocks', async () => {
+test('Skill renders as the skill name', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'tool_start', name: 'Skill', input: 'apple-calendar' },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.ok(
+		final.includes('-# apple-calendar'),
+		`expected skill name, got: ${JSON.stringify(final)}`,
+	);
+});
+
+test('mcp tool names are prettified', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{
+				type: 'tool_start',
+				name: 'mcp__home-assistant__HassTurnOff',
+				input: '{}',
+			},
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
+	assert.ok(
+		final.includes('-# home-assistant · HassTurnOff'),
+		`expected prettified mcp label, got: ${JSON.stringify(final)}`,
+	);
+});
+
+test('thinking before text is dropped, leaving just the answer', async () => {
 	const { channel, sent } = createMockChannel();
 	await streamToDiscord(
 		events(
@@ -201,10 +248,7 @@ test('thinking → text transition leaves a blank line between blocks', async ()
 		channel,
 	);
 	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
-	assert.ok(
-		/> pondering\n\nanswer/.test(final),
-		`expected blank line between thinking and text, got: ${JSON.stringify(final)}`,
-	);
+	assert.equal(final, 'answer');
 });
 
 test('error event is reported and stops the stream', async () => {
@@ -220,4 +264,25 @@ test('error event is reported and stops the stream', async () => {
 	const errorMessage = sent.send.find((m) => m.includes('**Error:**'));
 	assert.ok(errorMessage);
 	assert.ok(errorMessage.includes('boom'));
+});
+
+test('error includes the recent tool trail with full input', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'tool_start', name: 'Bash', input: 'gh api repos/foo/bar' },
+			{ type: 'error', message: 'boom' },
+		),
+		channel,
+	);
+	const errorMessage = sent.send.find((m) => m.includes('**Error:**'));
+	assert.ok(errorMessage);
+	assert.ok(
+		errorMessage.includes('What it was doing'),
+		`expected activity trail, got: ${JSON.stringify(errorMessage)}`,
+	);
+	assert.ok(
+		errorMessage.includes('gh api repos/foo/bar'),
+		`expected full command in error trail, got: ${JSON.stringify(errorMessage)}`,
+	);
 });
