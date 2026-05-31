@@ -190,10 +190,24 @@ function truncate(text: string, limit: number): string {
 	return `${text.slice(0, limit - 1)}…`;
 }
 
+const TOOL_VERBS: Record<string, string> = {
+	Bash: 'Ran a command',
+	Read: 'Read a file',
+	Write: 'Wrote a file',
+	Edit: 'Edited a file',
+	Glob: 'Searched for files',
+	Grep: 'Searched the code',
+	WebFetch: 'Fetched a page',
+	WebSearch: 'Searched the web',
+};
+
 function compactToolLabel(name: string, input: string): string {
-	if (name === 'Skill') return input || 'Skill';
-	if (name.startsWith('mcp__')) return name.slice(5).split('__').join(' · ');
-	return name;
+	if (name === 'Skill') return input ? `Used skill: ${input}` : 'Used a skill';
+	if (name === 'Task')
+		return input ? `Spawned sub-agent: ${input}` : 'Spawned a sub-agent';
+	if (name.startsWith('mcp__'))
+		return `Used ${name.slice(5).split('__').join(' · ')}`;
+	return TOOL_VERBS[name] ?? `Used ${name}`;
 }
 
 const FILE_PATH_REGEX =

@@ -134,7 +134,7 @@ test('tool_start after text always lands on a fresh line', async () => {
 		`tool line must start at column 0, got: ${JSON.stringify(final)}`,
 	);
 	assert.ok(
-		final.includes('\n-# Bash'),
+		final.includes('\n-# Ran a command'),
 		`expected separated compact tool line, got: ${JSON.stringify(final)}`,
 	);
 	assert.ok(
@@ -196,7 +196,7 @@ test('tool input is not shown on the happy path (compact name only)', async () =
 		`tool input leaked: ${JSON.stringify(final.slice(0, 60))}`,
 	);
 	assert.ok(
-		final.includes('-# Bash'),
+		final.includes('-# Ran a command'),
 		`expected compact Bash label, got: ${JSON.stringify(final)}`,
 	);
 });
@@ -212,7 +212,7 @@ test('Skill renders as the skill name', async () => {
 	);
 	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
 	assert.ok(
-		final.includes('-# apple-calendar'),
+		final.includes('-# Used skill: apple-calendar'),
 		`expected skill name, got: ${JSON.stringify(final)}`,
 	);
 });
@@ -232,7 +232,7 @@ test('mcp tool names are prettified', async () => {
 	);
 	const final = [...sent.send, ...sent.edits].at(-1) ?? '';
 	assert.ok(
-		final.includes('-# home-assistant · HassTurnOff'),
+		final.includes('-# Used home-assistant · HassTurnOff'),
 		`expected prettified mcp label, got: ${JSON.stringify(final)}`,
 	);
 });

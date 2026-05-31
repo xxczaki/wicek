@@ -111,6 +111,7 @@ function formatToolInput(
 			(input.skill as string) ||
 			''
 		);
+	if (name === 'Task') return (input.subagent_type as string) || '';
 	if (name.startsWith('mcp__')) return JSON.stringify(input).slice(0, 100);
 	return '';
 }
