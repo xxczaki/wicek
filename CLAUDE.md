@@ -71,6 +71,18 @@ Instance: https://parsify.grafana.net (org: parsify)
 Datasources: Prometheus (Mimir), Loki, Tempo, Pyroscope
 API key: $GRAFANA_API_KEY
 
+## UniFi Network
+
+UniFi Cloud Gateway Ultra (UCG-Ultra) – the home router and network controller. Reachable from the cluster.
+
+- Controller API: `https://10.10.10.1` (self-signed cert – use `curl -k`)
+- Credentials: `$UNIFI_USERNAME` / `$UNIFI_PASSWORD` (dedicated local UniFi user `wicek`)
+- Login: `POST /api/auth/login` with `{"username","password"}` – capture the `TOKEN` cookie and `X-CSRF-Token` header, then send both on subsequent requests
+- Network app (firewall policies, networks, clients, DNS) is proxied under `/proxy/network/`
+- For visual or interactive tasks, drive the UI with the chrome-devtools MCP
+
+Read-only by default. Confirm before changing firewall rules, DNS, or network config.
+
 ## Browser Tools
 
 - **WebFetch/WebSearch** – read-only page content, quick lookups, search results. Use by default.
