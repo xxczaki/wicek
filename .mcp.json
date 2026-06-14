@@ -1,12 +1,11 @@
 {
   "mcpServers": {
     "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "command": "./node_modules/.bin/context7-mcp"
     },
     "chrome-devtools": {
-      "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://localhost:9222"]
+      "command": "./node_modules/.bin/chrome-devtools-mcp",
+      "args": ["--browser-url=http://localhost:9222"]
     }
   }
 }
