@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Client, User } from 'discord.js';
+import { type Client, MessageFlags, type User } from 'discord.js';
 import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { streamAgent } from '../claude/agent.ts';
 import logger from '../utils/logger.ts';
@@ -60,7 +60,10 @@ async function executeJob(job: CronJobDef, client: Client) {
 		if (text) {
 			const chunks = splitMessage(text);
 			for (const chunk of chunks) {
-				await user.send(chunk);
+				await user.send({
+					content: chunk,
+					flags: MessageFlags.SuppressEmbeds,
+				});
 			}
 			logger.info({ name: job.name, chars: text.length }, 'Cron job delivered');
 		}
