@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
 	AttachmentBuilder,
 	type Message,
+	MessageFlags,
 	type SendableChannels,
 } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
@@ -39,18 +41,18 @@ export async function streamToDiscord(
 			if (isThinking && !buffer.startsWith('>')) buffer = `> ${buffer}`;
 
 			if (currentMessage) {
-				await currentMessage.edit(chunk);
+				await editText(currentMessage, chunk);
 			} else {
-				await channel.send(chunk);
+				await sendText(channel, chunk);
 			}
 			currentMessage = null;
 		}
 
 		if (!buffer) return;
 		if (!currentMessage) {
-			currentMessage = await channel.send(buffer);
+			currentMessage = await sendText(channel, buffer);
 		} else {
-			await currentMessage.edit(buffer);
+			await editText(currentMessage, buffer);
 		}
 		lastFlush = Date.now();
 	}
@@ -101,7 +103,7 @@ export async function streamToDiscord(
 					const toolLine = `-# ${compactToolLabel(event.name, event.input)}\n`;
 
 					if (!buffer && !currentMessage) {
-						currentMessage = await channel.send(toolLine);
+						currentMessage = await sendText(channel, toolLine);
 						lastFlush = Date.now();
 					} else {
 						buffer += toolLine;
@@ -141,7 +143,7 @@ export async function streamToDiscord(
 							.join('\n');
 						detail += `\n\n**What it was doing:**\n${trail}`;
 					}
-					await channel.send(truncate(detail, SAFE_LIMIT));
+					await sendText(channel, truncate(detail, SAFE_LIMIT));
 					return { sessionId, resultText: '' };
 				}
 			}
@@ -151,7 +153,8 @@ export async function streamToDiscord(
 			await finalizeCurrent();
 			if (!signal?.aborted) {
 				logger.error('Claude process ended without a result event');
-				await channel.send(
+				await sendText(
+					channel,
 					'**Error:** The AI process terminated unexpectedly. Please try again.',
 				);
 			}
@@ -161,18 +164,27 @@ export async function streamToDiscord(
 		if (buffer) {
 			await flush();
 		} else if (!currentMessage) {
-			await channel.send('*(No response)*');
+			await sendText(channel, '*(No response)*');
 		}
 
 		await sendFileAttachments(channel, allText || resultText, writtenFiles);
 	} catch (error) {
 		logger.error({ error }, 'Stream-to-Discord failed');
-		await channel
-			.send('Something went wrong while streaming the response.')
-			.catch(() => {});
+		await sendText(
+			channel,
+			'Something went wrong while streaming the response.',
+		).catch(() => {});
 	}
 
 	return { sessionId, resultText };
+}
+
+function sendText(channel: SendableChannels, content: string) {
+	return channel.send({ content, flags: MessageFlags.SuppressEmbeds });
+}
+
+function editText(message: Message, content: string) {
+	return message.edit({ content, flags: MessageFlags.SuppressEmbeds });
 }
 
 function findSplitPoint(text: string): number {
@@ -228,16 +240,29 @@ const SENDABLE_EXTENSIONS = new Set([
 	'.html',
 ]);
 
+function isSendableArtifact(path: string): boolean {
+	const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
+	return (
+		SENDABLE_EXTENSIONS.has(ext) &&
+		!path.includes('/attachments/') &&
+		existsSync(path) &&
+		!isInsideGitRepo(path)
+	);
+}
+
+function isInsideGitRepo(path: string): boolean {
+	let dir = dirname(path);
+	while (true) {
+		if (existsSync(join(dir, '.git'))) return true;
+		const parent = dirname(dir);
+		if (parent === dir) return false;
+		dir = parent;
+	}
+}
+
 function extractFilePaths(text: string): string[] {
 	const matches = text.match(FILE_PATH_REGEX) || [];
-	return [...new Set(matches)].filter((path) => {
-		const ext = path.slice(path.lastIndexOf('.'));
-		return (
-			SENDABLE_EXTENSIONS.has(ext) &&
-			!path.includes('/attachments/') &&
-			existsSync(path)
-		);
-	});
+	return [...new Set(matches)].filter(isSendableArtifact);
 }
 
 async function sendFileAttachments(
@@ -245,7 +270,7 @@ async function sendFileAttachments(
 	text: string,
 	writtenFiles: string[],
 ) {
-	const toolFiles = writtenFiles.filter((p) => existsSync(p));
+	const toolFiles = writtenFiles.filter(isSendableArtifact);
 	const paths = toolFiles.length > 0 ? toolFiles : extractFilePaths(text);
 	const uniquePaths = [...new Set(paths)];
 
