@@ -13,7 +13,7 @@ FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
 FROM node:24.16.0-alpine
-RUN apk add --no-cache bash openssh-client git
+RUN apk add --no-cache bash openssh-client git curl
 WORKDIR /app
 
 COPY --from=build /app/dist/ ./dist/
