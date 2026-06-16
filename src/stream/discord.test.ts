@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Message, SendableChannels } from 'discord.js';
+import { type Message, MessageFlags, type SendableChannels } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
 import { streamToDiscord } from './discord.ts';
 
 interface SentRecord {
 	send: string[];
 	edits: string[];
+	flags: unknown[];
 }
 
 function createMockChannel(): { channel: SendableChannels; sent: SentRecord } {
-	const sent: SentRecord = { send: [], edits: [] };
+	const sent: SentRecord = { send: [], edits: [], flags: [] };
 	const channel = {
 		send: async (payload: unknown) => {
 			const content =
@@ -18,9 +19,15 @@ function createMockChannel(): { channel: SendableChannels; sent: SentRecord } {
 					? payload
 					: ((payload as { content?: string }).content ?? '');
 			sent.send.push(content);
+			if (typeof payload === 'object' && payload !== null)
+				sent.flags.push((payload as { flags?: unknown }).flags);
 			return {
-				edit: async (newContent: string) => {
-					sent.edits.push(newContent);
+				edit: async (editPayload: unknown) => {
+					const editContent =
+						typeof editPayload === 'string'
+							? editPayload
+							: ((editPayload as { content?: string }).content ?? '');
+					sent.edits.push(editContent);
 				},
 			} as unknown as Message;
 		},
@@ -50,6 +57,19 @@ test('emits simple text and captures sessionId from result', async () => {
 	assert.equal(result.sessionId, 's1');
 	assert.equal(sent.send.length, 1);
 	assert.equal(sent.send[0], 'hello world');
+});
+
+test('suppresses link embeds on sent messages', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'text', content: 'see https://github.com/xxczaki/wicek/pull/1' },
+			{ type: 'result', sessionId: 's1', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	assert.equal(sent.send.length, 1);
+	assert.equal(sent.flags[0], MessageFlags.SuppressEmbeds);
 });
 
 test('splits text that exceeds safe limit across messages', async () => {
