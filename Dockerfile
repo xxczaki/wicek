@@ -16,6 +16,14 @@ FROM node:24.16.0-alpine
 RUN apk add --no-cache bash openssh-client git curl
 WORKDIR /app
 
+# Authenticate HTTPS git operations through gh (mounted at /usr/local/bin/gh
+# at runtime), using GH_TOKEN. System-level so it survives pod restarts,
+# unlike a per-user `gh auth setup-git`.
+RUN git config --system credential."https://github.com".helper '' && \
+    git config --system --add credential."https://github.com".helper '!/usr/local/bin/gh auth git-credential' && \
+    git config --system credential."https://gist.github.com".helper '' && \
+    git config --system --add credential."https://gist.github.com".helper '!/usr/local/bin/gh auth git-credential'
+
 COPY --from=build /app/dist/ ./dist/
 COPY --from=prod-deps /app/node_modules/ ./node_modules/
 COPY package.json CLAUDE.md cron.json .mcp.json ./
