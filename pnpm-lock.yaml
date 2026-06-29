@@ -30,8 +30,8 @@ importers:
         specifier: ^10.3.1
         version: 10.3.1
       tsdav:
-        specifier: ^2.2.2
-        version: 2.2.2
+        specifier: ^2.3.0
+        version: 2.3.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.1
@@ -460,9 +460,6 @@ packages:
   atomic-sleep@1.0.0:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
     engines: {node: '>=8.0.0'}
-
-  base-64@1.0.0:
-    resolution: {integrity: sha512-kwDPIFCGx0NZHog36dj+tHiwP4QMzsZ3AgMViUBKI0+V5n4U0ufTCUMhnQ04diaRI8EX/QcPfql7zlhZ7j4zgg==}
 
   body-parser@2.2.2:
     resolution: {integrity: sha512-oP5VkATKlNwcgvxi0vM0p/D3n2C3EReYVX+DNYs5TjZFn/oQt2j+4sVJtSMr18pdRr8wjTcBl6LoV+FUwzPmNA==}
@@ -923,8 +920,8 @@ packages:
   ts-mixer@6.0.4:
     resolution: {integrity: sha512-ufKpbmrugz5Aou4wcr5Wc1UUFWOLhq+Fm6qa6P0w0K5Qw2yhaUoiWszhCVuNQyNwrlGiscHOmqYoAox1PtvgjA==}
 
-  tsdav@2.2.2:
-    resolution: {integrity: sha512-/uC/RItcdYVxUj8b2gT4CorAkUmDFUuzhgS4XVT+OVzGRE80hH5ldubcWH13dHa2T9rNaXu6UIEWHlQ1UL7H1Q==}
+  tsdav@2.3.0:
+    resolution: {integrity: sha512-1zxaMcHw/ISDZc+owPykCZqXtJjZSWZr1Vz1ycw/X+8h48pYbUVmTFLl5hRKFx+pMWSYpCsq8rxdYdlpRep7Mw==}
     engines: {node: '>=18'}
 
   tslib@2.8.1:
@@ -1328,8 +1325,6 @@ snapshots:
       require-from-string: 2.0.2
 
   atomic-sleep@1.0.0: {}
-
-  base-64@1.0.0: {}
 
   body-parser@2.2.2:
     dependencies:
@@ -1833,9 +1828,8 @@ snapshots:
 
   ts-mixer@6.0.4: {}
 
-  tsdav@2.2.2:
+  tsdav@2.3.0:
     dependencies:
-      base-64: 1.0.0
       debug: 4.4.3
       xml-js: 1.6.11
     transitivePeerDependencies:
