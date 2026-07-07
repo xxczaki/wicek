@@ -12,8 +12,8 @@ importers:
         specifier: 0.3.201
         version: 0.3.201(@anthropic-ai/sdk@0.100.1(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@upstash/context7-mcp':
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.3
+        version: 3.2.3
       chrome-devtools-mcp:
         specifier: 1.5.0
         version: 1.5.0
@@ -431,8 +431,8 @@ packages:
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
-  '@upstash/context7-mcp@3.2.2':
-    resolution: {integrity: sha512-qWq0K4oHiByZSWpRfzlhmltRpUCjA8kSFFgGbvli1C+XGRL+qaflbbAzoHXOr2lOtknXK88NRH8GWHfnLy51Dw==}
+  '@upstash/context7-mcp@3.2.3':
+    resolution: {integrity: sha512-9L/9ufypc6lvlmiGxMLw/O94c8UcTCIvBI+o1R+FHVTgRw2lzg9FPGwcrKWuIOsAXH0+6pWFWm4dJWHbCm92sw==}
     hasBin: true
 
   '@upstash/redis@1.38.0':
@@ -1293,7 +1293,7 @@ snapshots:
     dependencies:
       '@types/node': 24.13.2
 
-  '@upstash/context7-mcp@3.2.2':
+  '@upstash/context7-mcp@3.2.3':
     dependencies:
       '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
       '@types/express': 5.0.6
