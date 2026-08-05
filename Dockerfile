@@ -1,4 +1,4 @@
-FROM node:24.18.1-alpine AS deps
+FROM node:24.19.0-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -12,7 +12,7 @@ RUN node esbuild.js
 FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24.18.1-alpine
+FROM node:24.19.0-alpine
 RUN apk add --no-cache bash openssh-client git curl
 WORKDIR /app
 
