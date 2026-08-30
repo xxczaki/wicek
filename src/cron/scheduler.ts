@@ -5,7 +5,7 @@ import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { streamAgent } from '../claude/agent.ts';
 import logger from '../utils/logger.ts';
 
-interface CronJobDef {
+export interface CronJobDef {
 	name: string;
 	schedule: string;
 	timezone?: string;
@@ -25,7 +25,41 @@ function loadCronConfig(configPath: string): CronJobDef[] {
 	}
 }
 
-async function executeJob(job: CronJobDef, client: Client) {
+const FAILURE_DETAIL_LIMIT = 1_600;
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+async function notifyFailure(user: User, job: CronJobDef, reason: string) {
+	const detail =
+		reason.length > FAILURE_DETAIL_LIMIT
+			? `${reason.slice(0, FAILURE_DETAIL_LIMIT)}…`
+			: reason;
+	const content = [
+		`⚠️ Scheduled job \`${job.name}\` failed.`,
+		'',
+		detail,
+		'',
+		'No scheduled result was delivered. Check Wicek authentication and logs.',
+	].join('\n');
+
+	try {
+		await user.send({ content, flags: MessageFlags.SuppressEmbeds });
+		logger.info({ name: job.name }, 'Cron job failure notification delivered');
+	} catch (error) {
+		logger.error(
+			{ error, name: job.name },
+			'Failed to deliver cron job failure notification',
+		);
+	}
+}
+
+export async function executeJob(
+	job: CronJobDef,
+	client: Client,
+	agent: typeof streamAgent = streamAgent,
+) {
 	logger.info({ name: job.name }, 'Executing cron job');
 
 	let user: User;
@@ -39,36 +73,47 @@ async function executeJob(job: CronJobDef, client: Client) {
 		return;
 	}
 
-	try {
-		const events = streamAgent({ prompt: job.prompt });
+	let failure: string | undefined;
+	let text = '';
 
-		let text = '';
+	try {
+		const events = agent({ prompt: job.prompt });
+
 		for await (const event of events) {
 			if (event.type === 'text') {
 				text += event.content;
 			} else if (event.type === 'result' && event.text) {
 				text = event.text;
 			} else if (event.type === 'error') {
-				logger.error(
-					{ name: job.name, message: event.message },
-					'Cron job agent error',
-				);
-				return;
+				failure = event.message;
+				break;
 			}
-		}
-
-		if (text) {
-			const chunks = splitMessage(text);
-			for (const chunk of chunks) {
-				await user.send({
-					content: chunk,
-					flags: MessageFlags.SuppressEmbeds,
-				});
-			}
-			logger.info({ name: job.name, chars: text.length }, 'Cron job delivered');
 		}
 	} catch (error) {
-		logger.error({ error, name: job.name }, 'Cron job execution failed');
+		failure = errorMessage(error);
+	}
+
+	if (!failure && !text) {
+		failure = 'The agent completed without producing a response.';
+	}
+
+	if (failure) {
+		logger.error({ name: job.name, reason: failure }, 'Cron job failed');
+		await notifyFailure(user, job, failure);
+		return;
+	}
+
+	try {
+		const chunks = splitMessage(text);
+		for (const chunk of chunks) {
+			await user.send({
+				content: chunk,
+				flags: MessageFlags.SuppressEmbeds,
+			});
+		}
+		logger.info({ name: job.name, chars: text.length }, 'Cron job delivered');
+	} catch (error) {
+		logger.error({ error, name: job.name }, 'Cron job delivery failed');
 	}
 }
 
