@@ -26,16 +26,28 @@ export function mapSdkMessage(message: SDKMessage): AgentEvent[] {
 			return mapToolStarts(message.message.content);
 		case 'user':
 			return mapToolEnds(message.message.content);
-		case 'result':
+		case 'result': {
+			if (message.subtype !== 'success') {
+				const details = message.errors.filter(Boolean).join('\n');
+				return [
+					{
+						type: 'error',
+						message:
+							details ||
+							`Agent stopped with ${message.subtype.replaceAll('_', ' ')}`,
+					},
+				];
+			}
 			return [
 				{
 					type: 'result',
 					sessionId: message.session_id,
 					cost: message.total_cost_usd,
 					turns: message.num_turns,
-					text: message.subtype === 'success' ? message.result : '',
+					text: message.result,
 				},
 			];
+		}
 		default:
 			return [];
 	}

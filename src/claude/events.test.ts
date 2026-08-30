@@ -102,21 +102,36 @@ test('maps a successful result to a result event with session and cost', () => {
 	]);
 });
 
-test('maps an error result to a result event with the session preserved', () => {
+test('maps an error result to an error event with the SDK details', () => {
 	const events = map({
 		type: 'result',
-		subtype: 'error_max_turns',
+		subtype: 'error_during_execution',
 		session_id: 'sess-456',
 		total_cost_usd: 0.02,
 		num_turns: 10,
+		errors: [
+			'Failed to authenticate. API Error: 401 OAuth access token has been revoked.',
+		],
 	});
 	assert.deepEqual(events, [
 		{
-			type: 'result',
-			sessionId: 'sess-456',
-			cost: 0.02,
-			turns: 10,
-			text: '',
+			type: 'error',
+			message:
+				'Failed to authenticate. API Error: 401 OAuth access token has been revoked.',
+		},
+	]);
+});
+
+test('maps an error result without details to a readable error', () => {
+	const events = map({
+		type: 'result',
+		subtype: 'error_max_turns',
+		errors: [],
+	});
+	assert.deepEqual(events, [
+		{
+			type: 'error',
+			message: 'Agent stopped with error max turns',
 		},
 	]);
 });
