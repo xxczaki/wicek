@@ -12,8 +12,8 @@ importers:
         specifier: 0.3.261
         version: 0.3.261(@anthropic-ai/sdk@0.100.1(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@upstash/context7-mcp':
-        specifier: 4.0.4
-        version: 4.0.4(hono@4.12.23)
+        specifier: 4.0.5
+        version: 4.0.5(hono@4.12.23)
       chrome-devtools-mcp:
         specifier: 1.8.0
         version: 1.8.0
@@ -569,8 +569,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@upstash/context7-mcp@4.0.4':
-    resolution: {integrity: sha512-7SO1no1tabPvC8OK8j1BBrUTysoCoUP/wHhzBTD53CDqJFKuPBxWH5MBl708vX1UwY3Ymd183SM4zLgJmwqYag==}
+  '@upstash/context7-mcp@4.0.5':
+    resolution: {integrity: sha512-PHDDdCiu/H9d37R//g/s50f5/EBvGECABExSgz0ESsdpeEoPCfWj34xd21r/3zakWTapOOwqManMwd9j9W2Xow==}
     engines: {node: '>=20.18.1'}
     hasBin: true
 
@@ -1519,7 +1519,7 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@upstash/context7-mcp@4.0.4(hono@4.12.23)':
+  '@upstash/context7-mcp@4.0.5(hono@4.12.23)':
     dependencies:
       '@modelcontextprotocol/node': 2.0.0(@modelcontextprotocol/server@2.0.0)(hono@4.12.23)
       '@modelcontextprotocol/server': 2.0.0
