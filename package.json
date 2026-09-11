@@ -22,7 +22,7 @@
     "tsdav": "^2.3.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.12",
+    "@biomejs/biome": "^2.5.13",
     "@types/node": "^24.13.4",
     "esbuild": "^0.28.2",
     "esbuild-plugin-pino": "2.3.3",
