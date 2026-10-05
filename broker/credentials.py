@@ -100,28 +100,39 @@ class CredentialBroker:
             flow.request.headers.pop(name, None)
         flow.request.headers.update(await self.auth_headers(rule, flow))
 
+    def responseheaders(self, flow: http.HTTPFlow):
+        rule = self.rule_for(flow.request.pretty_host)
+        if not rule or not flow.response:
+            return
+
+        content_type = flow.response.headers.get("content-type", "")
+        if content_type.startswith("text/event-stream"):
+            flow.response.stream = True
+        if flow.response.status_code != 401:
+            self.finish_response(rule, flow.response)
+
     async def response(self, flow: http.HTTPFlow):
         rule = self.rule_for(flow.request.pretty_host)
         if not rule or not flow.response:
             return
 
-        if rule.auth["type"] == "unifi":
-            if flow.response.status_code == 401:
-                rule.unifi_session = None
-                flow.request.headers.update(await self.auth_headers(rule, flow))
-                flow.response = await asyncio.to_thread(
-                    send_directly, rule, flow.request
-                )
-            updated_token = flow.response.headers.get("x-updated-csrf-token")
-            if updated_token and rule.unifi_session:
-                rule.unifi_session.csrf_token = updated_token
-
-        for name in STRIPPED_RESPONSE_HEADERS:
-            flow.response.headers.pop(name, None)
+        if rule.auth["type"] == "unifi" and flow.response.status_code == 401:
+            rule.unifi_session = None
+            flow.request.headers.update(await self.auth_headers(rule, flow))
+            flow.response = await asyncio.to_thread(send_directly, rule, flow.request)
+        self.finish_response(rule, flow.response)
 
         path = flow.request.path.split("?")[0]
         status = flow.response.status_code
-        ctx.log.info(f"broker {rule.host} {flow.request.method} {path} {status}")
+        host = flow.request.pretty_host
+        ctx.log.info(f"broker {host} {flow.request.method} {path} {status}")
+
+    def finish_response(self, rule: Rule, response: http.Response):
+        updated_token = response.headers.get("x-updated-csrf-token")
+        if rule.auth["type"] == "unifi" and updated_token and rule.unifi_session:
+            rule.unifi_session.csrf_token = updated_token
+        for name in STRIPPED_RESPONSE_HEADERS:
+            response.headers.pop(name, None)
 
     def websocket_message(self, flow: http.HTTPFlow):
         rule = self.rule_for(flow.request.pretty_host)
