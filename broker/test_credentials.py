@@ -208,3 +208,24 @@ def test_host_pattern_matches_wildcards_with_ports():
     pattern = re.compile(host_pattern("*.icloud.com"))
     assert pattern.match("p42-caldav.icloud.com:443")
     assert not pattern.match("icloud.com.evil.example:443")
+
+
+def test_streams_server_sent_events_and_strips_headers_up_front(secret):
+    broker = CredentialBroker(
+        [
+            Rule(
+                host="homeassistant.local",
+                auth={"type": "home-assistant", "tokenFile": secret("ha-sse", "real")},
+            )
+        ]
+    )
+    flow = make_flow("http://homeassistant.local:8123/mcp_server/sse")
+    flow.response = http.Response.make(
+        200, b"", {"content-type": "text/event-stream", "set-cookie": "a=b"}
+    )
+
+    with taddons.context(broker):
+        broker.responseheaders(flow)
+
+    assert flow.response.stream is True
+    assert "set-cookie" not in flow.response.headers
