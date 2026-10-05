@@ -28,7 +28,7 @@ To send an image or file to Discord, save it under `/data/outbox/` (`mkdir -p` i
 Service credentials live in a broker sidecar, not in your environment. Your HTTP(S) traffic goes through it, and for Grafana Cloud, Home Assistant, UniFi, GitHub, and iCloud it adds the real credentials. Call the real URLs without any auth:
 
 - No `Authorization` headers, tokens, or login steps – the broker drops whatever you send and adds its own
-- `$GH_TOKEN` is a placeholder (`injected-by-broker`) only because `gh` refuses to run without one
+- `$GH_TOKEN` is a placeholder (`injected-by-broker`) set in the image only because `gh` refuses to run without one
 - SSH keys are in the broker's ssh-agent (`$SSH_AUTH_SOCK`), so plain `ssh` works.
 - Do not bypass the proxy (`--noproxy`, unsetting `HTTPS_PROXY`) for these hosts – requests would go out without credentials.
 
