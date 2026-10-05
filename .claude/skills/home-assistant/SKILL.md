@@ -5,7 +5,8 @@ description: Read and control Home Assistant via its REST and WebSocket APIs, SS
 
 # Home Assistant
 
-`HA_TOKEN` is a full-admin token and sees every entity (MCP only sees ones exposed to Assist).
+`$HA_TOKEN` is a placeholder: the credential broker swaps in a full-admin token, which sees every entity
+(MCP only sees ones exposed to Assist).
 
 - **REST**: `http://homeassistant.wicek.svc.cluster.local:8123/api` with
   `Authorization: Bearer $HA_TOKEN`. States, history, logbook, services, and
@@ -14,7 +15,7 @@ description: Read and control Home Assistant via its REST and WebSocket APIs, SS
   REST lacks: registries (`config/entity_registry/list`, `config/device_registry/list`,
   `config/area_registry/list`), automation traces (`trace/list`, `trace/get`),
   `recorder/statistics_during_period`, `search/related`.
-- **SSH**: `ssh -i /etc/ssh/wicek/id_ed25519 root@homeassistant.wicek.svc.cluster.local`.
+- **SSH**: `ssh root@homeassistant.wicek.svc.cluster.local` (the key is in the broker's ssh-agent).
   `ha core logs`, `ha core check`, `ha apps logs <slug>`, config in `/config`.
   Read `/config/CLAUDE.md` before changing anything there.
 - **Recorder DB**: SQLite at `/config/home-assistant_v2.db`. No sqlite3 on the host by default

@@ -11,32 +11,29 @@ Never print credentials, cookies, API keys, or WLAN passphrases (`x_passphrase` 
 ## Access
 
 Controllers:
-- `home` – UCG-Ultra at `https://10.10.10.1` (self-signed, use `-k`), `$UNIFI_USERNAME` / `$UNIFI_PASSWORD`, site `default`.
+- `home` – UCG-Ultra at `https://10.10.10.1`, site `default`.
 
-Log in once. The session lives in `/data/tmp` and stays valid for hours. Log in again only after a 401.
-The password goes in on stdin, so it never shows up in the process list:
-
-```bash
-node -e 'console.log(JSON.stringify({username:process.env.UNIFI_USERNAME,password:process.env.UNIFI_PASSWORD}))' | curl -sk -c /data/tmp/unifi.jar -D - -o /dev/null -H 'content-type: application/json' -d @- https://10.10.10.1/api/auth/login | awk 'tolower($1)=="x-csrf-token:"{print $2}' | tr -d '\r' > /data/tmp/unifi.csrf && chmod 600 /data/tmp/unifi.jar /data/tmp/unifi.csrf
-```
-
-Then call:
+The credential broker logs in, keeps the session, and logs in again after a 401, so there is no login step,
+cookie jar, CSRF header, or `-k`:
 
 ```bash
-curl -sk -b /data/tmp/unifi.jar -H "x-csrf-token: $(cat /data/tmp/unifi.csrf)" -H 'content-type: application/json' https://10.10.10.1/proxy/network/api/s/default/stat/device
+curl -s https://10.10.10.1/proxy/network/api/s/default/stat/device
 ```
 
-Add `-d '<json>'` for POST, `-X PUT -d '<json>'` for PUT. Classic endpoints return `{meta:{rc}, data:[...]}`,
-v2 endpoints return plain JSON. Device objects are 30 KB+, so project fields with `node -e` before printing.
+Add `-H 'content-type: application/json' -d '<json>'` for POST. The broker allows GET and POST only for this
+controller: a `PUT` returns 405. For a confirmed write that needs `PUT`, tell the user it must be allowed under
+the `10.10.10.1` entry's `methods` in homelab `apps/wicek/chart.yaml`. Classic endpoints return
+`{meta:{rc}, data:[...]}`, v2 endpoints return plain JSON. Device objects are 30 KB+, so project fields with
+`node -e` before printing.
 
 Adding a controller (e.g. an office): no login needed with an API key. Use the Site Manager cloud connector
-with header `X-API-KEY: $UNIFI_<NAME>_API_KEY` and base
-`https://api.ui.com/v1/connector/consoles/<consoleId>`. Every `/proxy/network/...` path below works
-unchanged, writes included. Get `consoleId` from `GET https://api.ui.com/v1/hosts` with the same header.
-A local console also accepts an API key (Network → Settings → Control Plane → Integrations) at its own URL.
-To set one up: add the key to `wicek-secrets` (homelab `apps/wicek/sealed-secret.yaml`), expose it as an env var
-in the chart (charts `charts/wicek/templates/deployment.yaml`, homelab `apps/wicek/chart.yaml`), and list it
-under Controllers above.
+with header `X-API-KEY` and base `https://api.ui.com/v1/connector/consoles/<consoleId>`. Every
+`/proxy/network/...` path below works unchanged, writes included. Get `consoleId` from
+`GET https://api.ui.com/v1/hosts`. A local console also accepts an API key (Network → Settings → Control Plane →
+Integrations) at its own URL. To set one up: the user stores the key as an API Credential item in the 1Password
+`Wicek` vault, then homelab gets a `OnePasswordItem` (`apps/wicek/onepassword-items.yaml`), a `broker.secrets`
+entry, and a `broker.hosts` entry for the host (`apps/wicek/chart.yaml`). The broker has no `X-API-KEY` auth type
+yet, so that needs a small change in `broker/credentials.py` first. List the controller under Controllers above.
 
 ## Endpoints
 

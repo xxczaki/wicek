@@ -25,7 +25,14 @@ To send an image or file to Discord, save it under `/data/outbox/` (`mkdir -p` i
 
 ## Secrets
 
-Credentials are in environment variables (`$GRAFANA_API_KEY`, `$UNIFI_PASSWORD`, `$GH_TOKEN`, …). Reference them by name in commands; never print them. Their values are replaced with `[redacted]` in tool output and Discord messages.
+Service credentials live in a broker sidecar, not in your environment. Your HTTP(S) traffic goes through it, and for Grafana Cloud, Home Assistant, UniFi, GitHub, and iCloud it replaces the auth with the real credentials. Call the real URLs as usual:
+
+- `$GH_TOKEN`, `$GRAFANA_API_KEY`, `$HA_TOKEN`, `$APPLE_ID`, `$APPLE_APP_PASSWORD` are placeholders (`injected-by-broker`). Keep passing them where a tool expects them; the broker swaps them out.
+- UniFi needs no login step – the broker keeps the session.
+- SSH keys are in the broker's ssh-agent (`$SSH_AUTH_SOCK`), so plain `ssh` works.
+- Do not bypass the proxy (`--noproxy`, unsetting `HTTPS_PROXY`) for these hosts – requests would go out without credentials.
+
+To add a credential, the user stores it in the 1Password `Wicek` vault and adds a broker entry in homelab `apps/wicek/` – you never handle the value. Any remaining secret values are replaced with `[redacted]` in tool output and Discord messages.
 
 ## Self-Update via GitOps
 
@@ -69,10 +76,10 @@ Tailscale SSH auth, no keys needed.
 **Home Assistant**:
 
 ```
-ssh -i /etc/ssh/wicek/id_ed25519 root@homeassistant.wicek.svc.cluster.local
+ssh root@homeassistant.wicek.svc.cluster.local
 ```
 
-Dedicated ed25519 key from sealed secret.
+Dedicated ed25519 key, served by the broker's ssh-agent.
 HA runs home automation: devices, sensors, automations, config, logs, add-ons.
 
 ## GitHub
@@ -83,11 +90,11 @@ HA runs home automation: devices, sensors, automations, config, logs, add-ons.
 
 Instance: https://parsify.grafana.net (org: parsify)
 Datasources: Prometheus (Mimir), Loki, Tempo, Pyroscope
-API key: $GRAFANA_API_KEY
+API key: $GRAFANA_API_KEY (placeholder, the broker adds the real one)
 
 ## UniFi Network
 
-Home UCG-Ultra at `https://10.10.10.1`, credentials in `$UNIFI_USERNAME` / `$UNIFI_PASSWORD`.
+Home UCG-Ultra at `https://10.10.10.1`, authenticated by the broker (no login step).
 Use the `unifi` skill for anything UniFi or Wi-Fi – it has the helper, endpoints, analysis recipes, and the change protocol.
 Read-only by default. Confirm before any write.
 
