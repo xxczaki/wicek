@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import type { HookInput } from '@anthropic-ai/claude-agent-sdk';
 import { agentEnv, REDACTION_HOOKS, redactSecrets } from './secrets.ts';
 
-process.env.GRAFANA_API_KEY = 'glc_supersecretvalue';
-process.env.UNIFI_PASSWORD = 'pa"ss\\word123';
+process.env.GITHUB_WEBHOOK_SECRET = 'whsec_supersecretvalue';
+process.env.GRAFANA_WEBHOOK_TOKEN = 'pa"ss\\word123';
 process.env.DISCORD_TOKEN = 'discord-token-value';
 
 const [redactToolOutput] = REDACTION_HOOKS.PostToolUse?.[0].hooks ?? [];
@@ -25,7 +25,7 @@ function postToolUse(toolResponse: unknown): HookInput {
 
 test('redacts secret values from plain text', () => {
 	assert.equal(
-		redactSecrets('key=glc_supersecretvalue done'),
+		redactSecrets('key=whsec_supersecretvalue done'),
 		'key=[redacted] done',
 	);
 });
@@ -34,7 +34,7 @@ test('rewrites tool output that contains a secret, including JSON-escaped ones',
 	const result = await redactToolOutput(
 		postToolUse({
 			stdout:
-				'GRAFANA_API_KEY=glc_supersecretvalue\nUNIFI_PASSWORD=pa"ss\\word123',
+				'GITHUB_WEBHOOK_SECRET=whsec_supersecretvalue\nGRAFANA_WEBHOOK_TOKEN=pa"ss\\word123',
 		}),
 		'tool-1',
 		{ signal },
@@ -43,7 +43,8 @@ test('rewrites tool output that contains a secret, including JSON-escaped ones',
 		hookSpecificOutput: {
 			hookEventName: 'PostToolUse',
 			updatedToolOutput: {
-				stdout: 'GRAFANA_API_KEY=[redacted]\nUNIFI_PASSWORD=[redacted]',
+				stdout:
+					'GITHUB_WEBHOOK_SECRET=[redacted]\nGRAFANA_WEBHOOK_TOKEN=[redacted]',
 			},
 		},
 	});
@@ -61,5 +62,7 @@ test('leaves tool output without secrets untouched', async () => {
 test('hides bot-only tokens from the agent environment', () => {
 	const env = agentEnv();
 	assert.equal(env.DISCORD_TOKEN, undefined);
-	assert.equal(env.GRAFANA_API_KEY, 'glc_supersecretvalue');
+	assert.equal(env.GITHUB_WEBHOOK_SECRET, undefined);
+	assert.equal(env.GRAFANA_WEBHOOK_TOKEN, undefined);
+	assert.equal(env.PATH, process.env.PATH);
 });
