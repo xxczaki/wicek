@@ -1,0 +1,11 @@
+{
+	"home": {
+		"description": "Home UCG-Ultra, reachable from the cluster",
+		"auth": "local",
+		"url": "https://10.10.10.1",
+		"insecure": true,
+		"usernameEnv": "UNIFI_USERNAME",
+		"passwordEnv": "UNIFI_PASSWORD",
+		"site": "default"
+	}
+}
