@@ -7,6 +7,7 @@ import { attachInteractionHandler } from './discord/handlers/interaction.ts';
 import { attachMessageHandler } from './discord/handlers/message.ts';
 import { getEnv } from './utils/env.ts';
 import logger from './utils/logger.ts';
+import { startWebhookServer } from './webhooks/server.ts';
 
 const token = getEnv('DISCORD_TOKEN');
 const clientId = getEnv('CLIENT_ID');
@@ -14,6 +15,7 @@ const clientId = getEnv('CLIENT_ID');
 await registerCommands(token, clientId);
 
 const client = createClient();
+const webhookServer = startWebhookServer(client);
 
 client.once('ready', (c) => {
 	logger.info({ user: c.user.tag }, 'Bot ready');
@@ -29,6 +31,7 @@ await client.login(token);
 function shutdown(signal: string) {
 	logger.info({ signal }, 'Shutting down');
 	stopCronScheduler();
+	webhookServer.close();
 	flushSessions();
 	client.destroy();
 	process.exit(0);

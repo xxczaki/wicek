@@ -23,6 +23,7 @@ A minimal Node.js application that drives the [Claude Agent SDK](https://docs.cl
 - **Claude Agent SDK** – runs `query()` per request on a Pro/Max subscription (OAuth token, no API key), streaming results back to Discord with thinking (blockquotes), tool use, and text
 - **Browser automation** – headless Chrome sidecar with [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), screenshots auto-attached to Discord
 - **Cron jobs** – GitOps-defined scheduled prompts (e.g., daily ETF updates)
+- **Webhooks** – GitHub CI failures and Grafana alerts start debounced agent runs (`POST /hooks/github`, `POST /hooks/grafana`, `GET /healthz` on `WEBHOOK_PORT`, default 8080), exposed via Tailscale Funnel
 - **Custom subagents** – `.claude/agents/` for ETF analysis, infrastructure ops, Home Assistant
 - **File handling** – receives Discord attachments, sends back generated files and screenshots
 - **Self-update** – knows how to push changes through the GitOps pipeline (git -> ArgoCD)

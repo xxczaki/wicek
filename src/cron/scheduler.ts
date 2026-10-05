@@ -7,12 +7,15 @@ import { setSession } from '../claude/sessions.ts';
 import { attachMentionedFiles } from '../stream/discord.ts';
 import logger from '../utils/logger.ts';
 
-export interface CronJobDef {
+export interface JobDef {
 	name: string;
-	schedule: string;
-	timezone?: string;
 	prompt: string;
 	targetUserId: string;
+}
+
+export interface CronJobDef extends JobDef {
+	schedule: string;
+	timezone?: string;
 }
 
 const tasks: ScheduledTask[] = [];
@@ -33,36 +36,36 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-async function notifyFailure(user: User, job: CronJobDef, reason: string) {
+async function notifyFailure(user: User, job: JobDef, reason: string) {
 	const detail =
 		reason.length > FAILURE_DETAIL_LIMIT
 			? `${reason.slice(0, FAILURE_DETAIL_LIMIT)}…`
 			: reason;
 	const content = [
-		`⚠️ Scheduled job \`${job.name}\` failed.`,
+		`⚠️ Job \`${job.name}\` failed.`,
 		'',
 		detail,
 		'',
-		'No scheduled result was delivered. Check Wicek authentication and logs.',
+		'No result was delivered. Check Wicek authentication and logs.',
 	].join('\n');
 
 	try {
 		await user.send({ content, flags: MessageFlags.SuppressEmbeds });
-		logger.info({ name: job.name }, 'Cron job failure notification delivered');
+		logger.info({ name: job.name }, 'Job failure notification delivered');
 	} catch (error) {
 		logger.error(
 			{ error, name: job.name },
-			'Failed to deliver cron job failure notification',
+			'Failed to deliver job failure notification',
 		);
 	}
 }
 
 export async function executeJob(
-	job: CronJobDef,
+	job: JobDef,
 	client: Client,
 	agent: typeof streamAgent = streamAgent,
 ) {
-	logger.info({ name: job.name }, 'Executing cron job');
+	logger.info({ name: job.name }, 'Executing job');
 
 	let user: User;
 	try {
@@ -101,7 +104,7 @@ export async function executeJob(
 	}
 
 	if (failure) {
-		logger.error({ name: job.name, reason: failure }, 'Cron job failed');
+		logger.error({ name: job.name, reason: failure }, 'Job failed');
 		await notifyFailure(user, job, failure);
 		return;
 	}
@@ -116,9 +119,20 @@ export async function executeJob(
 			posts.set(message, chunk);
 		}
 		await attachMentionedFiles(posts);
-		logger.info({ name: job.name, chars: text.length }, 'Cron job delivered');
+		logger.info({ name: job.name, chars: text.length }, 'Job delivered');
 	} catch (error) {
-		logger.error({ error, name: job.name }, 'Cron job delivery failed');
+		logger.error({ error, name: job.name }, 'Job delivery failed');
+	}
+}
+
+export async function sendDirectMessage(
+	client: Client,
+	userId: string,
+	text: string,
+) {
+	const user = await client.users.fetch(userId);
+	for (const chunk of splitMessage(text)) {
+		await user.send({ content: chunk, flags: MessageFlags.SuppressEmbeds });
 	}
 }
 

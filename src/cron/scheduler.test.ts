@@ -49,7 +49,7 @@ test('notifies the target user when the agent reports an auth error', async () =
 	);
 
 	assert.equal(sent.length, 1);
-	assert.match(sent[0], /Scheduled job `etf-update` failed/);
+	assert.match(sent[0], /Job `etf-update` failed/);
 	assert.match(sent[0], /OAuth access token has been revoked/);
 });
 
