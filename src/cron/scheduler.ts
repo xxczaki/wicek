@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { type Client, type Message, MessageFlags, type User } from 'discord.js';
 import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { streamAgent } from '../claude/agent.ts';
-import { acquireAgent, releaseAgent } from '../claude/lock.ts';
 import { attachMentionedFiles } from '../stream/discord.ts';
 import logger from '../utils/logger.ts';
 
@@ -81,7 +80,6 @@ export async function executeJob(
 	let failure: string | undefined;
 	let text = '';
 
-	await acquireAgent();
 	try {
 		const events = agent({ prompt: job.prompt });
 
@@ -97,8 +95,6 @@ export async function executeJob(
 		}
 	} catch (error) {
 		failure = errorMessage(error);
-	} finally {
-		releaseAgent();
 	}
 
 	if (!failure && !text) {

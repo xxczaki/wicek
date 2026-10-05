@@ -5,6 +5,7 @@ import {
 	type ServerResponse,
 } from 'node:http';
 import type { Client } from 'discord.js';
+import { type StreamAgentOptions, streamAgent } from '../claude/agent.ts';
 import { executeJob, sendDirectMessage } from '../cron/scheduler.ts';
 import { getEnvList, getOptionalEnv } from '../utils/env.ts';
 import logger from '../utils/logger.ts';
@@ -38,17 +39,18 @@ export function startWebhookServer(client: Client): Server {
 	const port = Number(getOptionalEnv('WEBHOOK_PORT') ?? DEFAULT_WEBHOOK_PORT);
 	const ownerId = getEnvList('ALLOWED_USER_IDS')[0];
 
+	let runQueue = Promise.resolve();
 	const batcher = new WebhookBatcher(
 		(topic, lines) => {
-			logger.info({ topic, items: lines.length }, 'Dispatching webhook run');
-			executeJob(
-				{
-					name: `webhook-${topic}`,
-					prompt: PROMPT_BUILDERS[topic](lines),
-					targetUserId: ownerId,
-				},
-				client,
-			).catch((error) => logger.error({ error, topic }, 'Webhook run failed'));
+			logger.info({ topic, items: lines.length }, 'Queued webhook run');
+			const job = {
+				name: `webhook-${topic}`,
+				prompt: PROMPT_BUILDERS[topic](lines),
+				targetUserId: ownerId,
+			};
+			runQueue = runQueue
+				.then(() => executeJob(job, client, runWithoutMcp))
+				.catch((error) => logger.error({ error, topic }, 'Webhook run failed'));
 		},
 		BATCH_WINDOW_MS,
 		DEDUPE_WINDOW_MS,
@@ -76,6 +78,10 @@ export function startWebhookServer(client: Client): Server {
 
 	server.listen(port, () => logger.info({ port }, 'Webhook server listening'));
 	return server;
+}
+
+function runWithoutMcp(options: StreamAgentOptions) {
+	return streamAgent({ ...options, withoutMcp: true });
 }
 
 async function route(

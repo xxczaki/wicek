@@ -10,6 +10,7 @@ export interface StreamAgentOptions {
 	sessionId?: string;
 	model?: string;
 	abortController?: AbortController;
+	withoutMcp?: boolean;
 }
 
 // The Agent SDK does not expand ${VARS} in .mcp.json headers, so the Home
@@ -39,7 +40,8 @@ export async function* streamAgent(
 			options: {
 				resume,
 				model: options.model ?? 'opus',
-				mcpServers: HOME_ASSISTANT_MCP,
+				mcpServers: options.withoutMcp ? undefined : HOME_ASSISTANT_MCP,
+				strictMcpConfig: options.withoutMcp,
 				includePartialMessages: true,
 				permissionMode: 'auto',
 				settingSources: ['user', 'project', 'local'],
