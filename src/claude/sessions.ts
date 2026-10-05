@@ -10,7 +10,7 @@ interface SessionEntry {
 }
 
 const sessions = new Map<string, SessionEntry>();
-let loaded = false;
+let isLoaded = false;
 
 function filePath(): string {
 	const dataDir = getOptionalEnv('DATA_DIR') || '/data';
@@ -18,8 +18,8 @@ function filePath(): string {
 }
 
 function load() {
-	if (loaded) return;
-	loaded = true;
+	if (isLoaded) return;
+	isLoaded = true;
 
 	try {
 		const raw = readFileSync(filePath(), 'utf-8');
@@ -100,5 +100,5 @@ export function markConsolidated(key: string) {
 }
 
 export function flushSessions() {
-	if (loaded) save();
+	if (isLoaded) save();
 }

@@ -13,7 +13,7 @@ import {
 	downloadAttachments,
 } from '../attachments.ts';
 
-let busy = false;
+let isBusy = false;
 let activeController: AbortController | null = null;
 
 export function stopAgent(): boolean {
@@ -39,12 +39,12 @@ async function runAgent(
 	channel: SendableChannels,
 	ctx: ReturnType<typeof getContextFromMessage>,
 ) {
-	if (busy) {
+	if (isBusy) {
 		await channel.send("I'm currently handling another request. Please wait.");
 		return;
 	}
 
-	busy = true;
+	isBusy = true;
 
 	const TYPING_INTERVAL_MS = 8_000;
 	const typingInterval = channel.isTextBased()
@@ -83,7 +83,7 @@ async function runAgent(
 	} finally {
 		if (typingInterval) clearInterval(typingInterval);
 		activeController = null;
-		busy = false;
+		isBusy = false;
 	}
 }
 

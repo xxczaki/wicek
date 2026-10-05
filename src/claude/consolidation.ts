@@ -24,7 +24,7 @@ Skip one-off task details and anything the repo, CLAUDE.md, or a single command 
 
 Reply with one line per change, like "Added <slug>: <hook>", "Updated <slug>: <what changed>", or "Removed <slug>: <why>". If nothing changed, reply with exactly ${NO_CHANGES} and nothing else.`;
 
-let sweeping = false;
+let isSweeping = false;
 
 export function initConsolidation(client: Client) {
 	const timer = setInterval(() => {
@@ -38,8 +38,8 @@ export function initConsolidation(client: Client) {
 }
 
 async function sweep(client: Client) {
-	if (sweeping) return;
-	sweeping = true;
+	if (isSweeping) return;
+	isSweeping = true;
 
 	try {
 		const summaries: string[] = [];
@@ -58,7 +58,7 @@ async function sweep(client: Client) {
 			await notifyOwner(client, summaries.join('\n'));
 		}
 	} finally {
-		sweeping = false;
+		isSweeping = false;
 	}
 }
 

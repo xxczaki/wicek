@@ -1,8 +1,11 @@
 FROM node:24.21.0-alpine AS base
+COPY --from=ghcr.io/jdx/mise:2026.10.3 /usr/local/bin/mise /usr/local/bin/mise
+ENV MISE_DATA_DIR=/opt/mise
+ENV MISE_GLOBAL_CONFIG_FILE=/app/mise.toml
+ENV PATH="/opt/mise/shims:$PATH"
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN npm install --global --no-fund --no-audit \
-    "pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+COPY mise.toml package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN mise install
 
 FROM base AS deps
 RUN pnpm install --frozen-lockfile
