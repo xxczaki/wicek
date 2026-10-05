@@ -12,5 +12,12 @@
     "timezone": "Europe/Berlin",
     "prompt": "Use the repo-maintenance subagent to run a weekly maintenance sweep of my GitHub repos: wicek, homelab, charts, discord-bot, homeassistant, renovate-config (all under github.com/xxczaki). For each repo, find red Renovate/release CI runs and failing automated PRs, diagnose them, and fix only the safe cases on a branch via a PR (gh pr create). Never merge, never force-push, never push to main directly. Work through the repos one at a time to stay within the Raspberry Pi's resources. End with a one-line status per repo and links to any PRs you opened; if everything is already green, say so.",
     "targetUserId": "349213466743013376"
+  },
+  {
+    "name": "weekly-maintenance",
+    "schedule": "0 23 * * 0",
+    "timezone": "Europe/Berlin",
+    "prompt": "Weekly maintenance. Work through each step, then reply with one short summary (a few bullets, under 800 characters).\n\n1. Memory – reconcile ~/.claude/projects/-app/memory. Read MEMORY.md and every file. Merge duplicates. Rewrite any file that contradicts itself so it states only the newest evidence. Delete wrong or stale facts – when unsure, check transcripts from the last 30 days (~/.claude/projects/-app/*.jsonl), and drop time-sensitive facts (prices, holdings, versions) that you can't confirm. Fix or remove [[links]] to memories that don't exist. Make MEMORY.md exactly one line per existing file.\n2. Layout – follow the Data Locations convention in CLAUDE.md. Move git clones in the /data root into /data/repos/ (skip any with uncommitted changes and mention them). Move other loose files and directories in the /data root into /data/tmp/. Never move .pnpm-store, repos, tmp, outbox, media, attachments, sessions.json, or lost+found.\n3. Cleanup – `find /data/tmp /data/outbox /data/media /data/attachments -mindepth 1 -mtime +7 -delete` (ignore missing directories), then remove empty directories left behind.\n4. pnpm store – `pnpm store prune --store-dir /data/.pnpm-store`.\n\nReport memory changes, files moved, and disk space reclaimed (`du -sh /data` before and after).",
+    "targetUserId": "349213466743013376"
   }
 ]

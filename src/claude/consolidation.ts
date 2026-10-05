@@ -5,16 +5,26 @@ import { streamAgent } from './agent.ts';
 import { markConsolidated, pendingConsolidation } from './sessions.ts';
 
 const SWEEP_INTERVAL_MS = 15 * 60 * 1000;
-const IDLE_THRESHOLD_MS = 20 * 60 * 1000;
+const IDLE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 const NO_CHANGES = 'NO_CHANGES';
 
-const CONSOLIDATION_PROMPT = `Review this conversation for durable, non-obvious facts worth keeping long term: user preferences, project decisions, corrections, or stable context.
+const CONSOLIDATION_PROMPT = `Memory pass. Transcripts are deleted after about 30 days, so memory is the only long-term record. Look for durable, non-obvious knowledge in this conversation:
+- Environment: devices, hosts, network layout, services, accounts, and where things live
+- Procedures learned the hard way: what failed, what worked, exact commands and API quirks
+- User preferences, decisions, and corrections
 
-Update your memory files: read MEMORY.md first, dedupe against existing entries, and update in place instead of appending duplicates. Keep one fact per file.
+Reconcile instead of appending:
+1. Read MEMORY.md and every memory file related to what you learned.
+2. Rewrite each touched file as a whole so it reads as one current, consistent note. Never add a paragraph that contradicts an earlier one.
+3. When facts conflict, keep the newest evidence. Delete facts this conversation proved wrong or stale, and delete files with nothing true left.
+4. Every [[link]] in a touched file must point to an existing memory – fix or remove dangling ones.
+5. Keep MEMORY.md at one line per existing file.
 
-Then reply with a short summary of the changes – one line each, like "Added <slug>: <hook>" or "Updated <slug>: <what changed>". If nothing is worth saving, reply with exactly ${NO_CHANGES} and nothing else.`;
+Skip one-off task details and anything the repo, CLAUDE.md, or a single command already tells you.
 
-let sweeping = false;
+Reply with one line per change, like "Added <slug>: <hook>", "Updated <slug>: <what changed>", or "Removed <slug>: <why>". If nothing changed, reply with exactly ${NO_CHANGES} and nothing else.`;
+
+let isSweeping = false;
 
 export function initConsolidation(client: Client) {
 	const timer = setInterval(() => {
@@ -28,24 +38,27 @@ export function initConsolidation(client: Client) {
 }
 
 async function sweep(client: Client) {
-	if (sweeping) return;
-	sweeping = true;
+	if (isSweeping) return;
+	isSweeping = true;
 
 	try {
+		const summaries: string[] = [];
 		for (const { key, sessionId } of pendingConsolidation(IDLE_THRESHOLD_MS)) {
 			try {
 				const summary = await consolidate(sessionId);
 				markConsolidated(key);
 
-				if (summary && summary !== NO_CHANGES) {
-					await notifyOwner(client, summary);
-				}
+				if (summary && summary !== NO_CHANGES) summaries.push(summary);
 			} catch (error) {
 				logger.error({ error, key }, 'Memory consolidation failed');
 			}
 		}
+
+		if (summaries.length > 0) {
+			await notifyOwner(client, summaries.join('\n'));
+		}
 	} finally {
-		sweeping = false;
+		isSweeping = false;
 	}
 }
 
@@ -54,7 +67,7 @@ async function consolidate(sessionId: string): Promise<string> {
 	for await (const event of streamAgent({
 		prompt: CONSOLIDATION_PROMPT,
 		sessionId,
-		model: 'haiku',
+		model: 'sonnet',
 	})) {
 		if (event.type === 'result') text = event.text;
 		else if (event.type === 'error') throw new Error(event.message);

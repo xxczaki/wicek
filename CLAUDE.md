@@ -51,7 +51,7 @@ ArgoCD auto-syncs changes (typically within a minute).
 
 **To update deployment:**
 
-1. Clone the relevant repo to /data
+1. Clone the relevant repo to /data/repos/<repo>
 2. Make changes on a branch
 3. Push and create PR via `gh pr create`
 4. After merge, ArgoCD syncs automatically
@@ -119,3 +119,13 @@ Read-only by default. Confirm before changing firewall rules, DNS, or network co
 - Read-only config: /app (CLAUDE.md, .claude/, cron.json)
 - Writable workspace: /data
 - Claude Code state: ~/.claude/ (sessions, auto-memory)
+
+Keep the /data root tidy – don't leave files there:
+
+- `/data/repos/<repo>` – git clones (reuse with `git fetch` + reset)
+- `/data/tmp/` – scratch scripts, downloads, config snapshots, and other one-off files
+- `/data/outbox/` – files to send to Discord
+- `/data/.pnpm-store` – pnpm store (kept on the same filesystem as the clones)
+- `/data/media`, `/data/attachments`, `/data/sessions.json` – managed by Wicek
+
+A weekly job deletes anything in `/data/tmp`, `/data/outbox`, `/data/media`, and `/data/attachments` older than 7 days. Save anything worth keeping to memory or a repo.

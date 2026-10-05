@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { type Client, type Message, MessageFlags, type User } from 'discord.js';
 import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { streamAgent } from '../claude/agent.ts';
+import { setSession } from '../claude/sessions.ts';
 import { attachMentionedFiles } from '../stream/discord.ts';
 import logger from '../utils/logger.ts';
 
@@ -83,8 +84,9 @@ export async function executeJob(
 		for await (const event of events) {
 			if (event.type === 'text') {
 				text += event.content;
-			} else if (event.type === 'result' && event.text) {
-				text = event.text;
+			} else if (event.type === 'result') {
+				setSession(`cron:${job.name}`, event.sessionId);
+				if (event.text) text = event.text;
 			} else if (event.type === 'error') {
 				failure = event.message;
 				break;

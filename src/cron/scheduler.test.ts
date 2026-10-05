@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import type { Client, User } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
+import { getSession } from '../claude/sessions.ts';
 import { type CronJobDef, executeJob } from './scheduler.ts';
+
+process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'wicek-cron-'));
 
 const job: CronJobDef = {
 	name: 'etf-update',
@@ -70,4 +76,21 @@ test('delivers a successful scheduled result normally', async () => {
 	);
 
 	assert.deepEqual(sent, ['All good']);
+});
+
+test('registers the scheduled session for memory consolidation', async () => {
+	const { client } = createClient();
+	await executeJob(
+		job,
+		client,
+		agentWith({
+			type: 'result',
+			sessionId: 'session-2',
+			cost: 0,
+			turns: 1,
+			text: 'Done',
+		}),
+	);
+
+	assert.equal(getSession('cron:etf-update'), 'session-2');
 });
