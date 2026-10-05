@@ -5,6 +5,7 @@ import {
 	type SendableChannels,
 } from 'discord.js';
 import { streamAgent } from '../../claude/agent.ts';
+import { releaseAgent, tryAcquireAgent } from '../../claude/lock.ts';
 import { contextKey, getSession, setSession } from '../../claude/sessions.ts';
 import { streamToDiscord } from '../../stream/discord.ts';
 import logger from '../../utils/logger.ts';
@@ -13,7 +14,6 @@ import {
 	downloadAttachments,
 } from '../attachments.ts';
 
-let busy = false;
 let activeController: AbortController | null = null;
 
 export function stopAgent(): boolean {
@@ -39,12 +39,10 @@ async function runAgent(
 	channel: SendableChannels,
 	ctx: ReturnType<typeof getContextFromMessage>,
 ) {
-	if (busy) {
+	if (!tryAcquireAgent()) {
 		await channel.send("I'm currently handling another request. Please wait.");
 		return;
 	}
-
-	busy = true;
 
 	const TYPING_INTERVAL_MS = 8_000;
 	const typingInterval = channel.isTextBased()
@@ -83,7 +81,7 @@ async function runAgent(
 	} finally {
 		if (typingInterval) clearInterval(typingInterval);
 		activeController = null;
-		busy = false;
+		releaseAgent();
 	}
 }
 
