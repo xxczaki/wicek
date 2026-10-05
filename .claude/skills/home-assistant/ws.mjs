@@ -13,9 +13,7 @@ socket.addEventListener('message', ({ data }) => {
 	const message = JSON.parse(data);
 
 	if (message.type === 'auth_required') {
-		socket.send(
-			JSON.stringify({ type: 'auth', access_token: process.env.HA_TOKEN }),
-		);
+		socket.send(JSON.stringify({ type: 'auth' }));
 	} else if (message.type === 'auth_invalid') {
 		fail(message.message);
 	} else if (message.type === 'auth_ok') {

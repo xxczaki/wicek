@@ -58,7 +58,7 @@ export function buildGrafanaPrompt(lines: string[]): string {
 		...lines.map((line) => `- ${line}`),
 		'',
 		'Investigate before concluding, read-only:',
-		'1. Alert state history in Grafana Cloud (https://parsify.grafana.net, $GRAFANA_API_KEY) – when it started, whether it flaps, related alerts.',
+		'1. Alert state history in Grafana Cloud (https://parsify.grafana.net) – when it started, whether it flaps, related alerts.',
 		'2. Cluster health over SSH to the Raspberry Pi – node status, pods not Running/Ready, recent warning events, ArgoCD app sync/health.',
 		'3. Alloy (k8s-monitoring) logs for remote-write or scrape errors – a telemetry gap can look like an outage.',
 		'4. UniFi WAN stats (https://10.10.10.1) for internet drops – the home connection drops nightly around 03:00–04:00 and 06:00 CEST.',
