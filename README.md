@@ -35,7 +35,7 @@ Runs on a single-node K3s cluster (Raspberry Pi 4). See [xxczaki/homelab](https:
 
 ### Credential broker
 
-Service credentials live in a sidecar (`ghcr.io/xxczaki/wicek-broker`, source in `broker/`), not in the agent container. It is [mitmproxy](https://mitmproxy.org/) with a small add-on, listening on `127.0.0.1:3128`. The agent container sends its traffic through it via `HTTP(S)_PROXY` and trusts the broker's CA, so tools call the real URLs with placeholder credentials and the broker swaps in the real ones.
+Service credentials live in a sidecar (`ghcr.io/xxczaki/wicek-broker`, source in `broker/`), not in the agent container. It is [mitmproxy](https://mitmproxy.org/) with a small add-on, listening on `127.0.0.1:3128`. The agent container sends its traffic through it via `HTTP(S)_PROXY` and trusts the broker's CA, so tools call the real URLs without credentials and the broker adds the real ones. The image sets a placeholder `GH_TOKEN` because `gh` refuses to run without one. Git needs no credential helper.
 
 Only hosts listed in the config are intercepted. Everything else is tunneled through untouched, and the hosts in `NO_PROXY` (Claude API, Discord) bypass it. For a listed host, the broker drops client `Authorization`/`Cookie`/CSRF headers, adds its own, removes `Set-Cookie` and CSRF headers from the response, and logs one line per request without bodies or query strings. Auth types:
 

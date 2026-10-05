@@ -5,11 +5,10 @@ description: Read and control Home Assistant via its REST and WebSocket APIs, SS
 
 # Home Assistant
 
-`$HA_TOKEN` is a placeholder: the credential broker swaps in a full-admin token, which sees every entity
-(MCP only sees ones exposed to Assist).
+The credential broker adds a full-admin token to every request, so send no auth. That token sees every
+entity (MCP only sees ones exposed to Assist).
 
-- **REST**: `http://homeassistant.wicek.svc.cluster.local:8123/api` with
-  `Authorization: Bearer $HA_TOKEN`. States, history, logbook, services, and
+- **REST**: `http://homeassistant.wicek.svc.cluster.local:8123/api`. States, history, logbook, services, and
   `POST /api/template` for ad-hoc questions. `/api/error_log` is 404 here.
 - **WebSocket**: `node /app/.claude/skills/home-assistant/ws.mjs <type> [json]` for anything
   REST lacks: registries (`config/entity_registry/list`, `config/device_registry/list`,

@@ -5,8 +5,8 @@ description: Read and write the user's Apple (iCloud) Calendar over CalDAV. Use 
 
 # Apple Calendar (iCloud, CalDAV)
 
-A Node script talks to iCloud CalDAV using `APPLE_ID` + `APPLE_APP_PASSWORD` from
-the environment (sealed into `wicek-secrets`). All output is JSON on stdout.
+A Node script talks to iCloud CalDAV without credentials – the credential broker adds them.
+All output is JSON on stdout.
 
 Invoke:
 

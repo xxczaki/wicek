@@ -1,15 +1,12 @@
 #!/usr/bin/env node
 // Apple Calendar (iCloud CalDAV) skill for wicek.
-// Reads APPLE_ID + APPLE_APP_PASSWORD from the environment.
+// Sends no credentials: the credential broker adds iCloud auth to every request.
 // Usage: node cal.mjs <command> [--flags]   — all output is JSON on stdout.
 import { randomUUID } from 'node:crypto';
 import { createDAVClient } from 'tsdav';
 import * as ICALns from 'ical.js';
 
 const ICAL = ICALns.default ?? ICALns;
-
-const USERNAME = process.env.APPLE_ID;
-const PASSWORD = process.env.APPLE_APP_PASSWORD;
 
 function fail(msg) {
   console.error(JSON.stringify({ error: String(msg) }));
@@ -164,14 +161,13 @@ function applyUpdates(data, a) {
 }
 
 async function main() {
-  if (!USERNAME || !PASSWORD) fail('APPLE_ID and APPLE_APP_PASSWORD must be set');
   const [cmd, ...rest] = process.argv.slice(2);
   const a = parseArgs(rest);
 
   const client = await createDAVClient({
     serverUrl: 'https://caldav.icloud.com',
-    credentials: { username: USERNAME, password: PASSWORD },
-    authMethod: 'Basic',
+    authMethod: 'Custom',
+    authFunction: async () => ({}),
     defaultAccountType: 'caldav',
   });
   const calendars = await client.fetchCalendars();
