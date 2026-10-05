@@ -190,6 +190,9 @@ importers:
       tsdav:
         specifier: ^2.3.5
         version: 2.3.5
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.15

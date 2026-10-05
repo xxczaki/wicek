@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from mitmproxy import ctx, http, tls
 from OpenSSL import SSL
 
+import mail
+
 CONFIG_PATH = os.environ.get("BROKER_CONFIG", "/etc/broker/config.json")
 LOGIN_TIMEOUT_SECONDS = 15
 
@@ -93,6 +95,16 @@ class CredentialBroker:
                     {"error": f"{flow.request.method} is not allowed on {rule.host}"}
                 ),
                 {"content-type": "application/json"},
+            )
+            return
+
+        if rule.auth["type"] == "imap":
+            flow.response = await asyncio.to_thread(
+                mail.respond,
+                flow.request,
+                rule.auth["server"],
+                read_secret(rule.auth["usernameFile"]),
+                read_secret(rule.auth["passwordFile"]),
             )
             return
 

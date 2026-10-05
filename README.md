@@ -43,6 +43,7 @@ Only hosts listed in the config are intercepted. Everything else is tunneled thr
 - `basic` – `Authorization: Basic` from `username` or `usernameFile`, plus `passwordFile`
 - `home-assistant` – `bearer`, plus the `access_token` in the WebSocket `auth` message
 - `unifi` – logs in with `usernameFile`/`passwordFile`, keeps the `TOKEN` cookie and CSRF token, logs in again after a 401
+- `imap` – the broker answers the request itself as a read-only mail gateway for `server` (port 993), logging in with `usernameFile`/`passwordFile`. Endpoints: `GET /folders`, `/search` (`folder`, `from`, `to`, `subject`, `text`, `since`, `before`, `unseen`, `limit`) and `/message` (`folder`, `uid`). It opens folders with `EXAMINE` and fetches with `BODY.PEEK`, so it can't change the mailbox or mark messages as read. Use a made-up host such as `http://imap.broker`
 
 Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstreams). Hosts may use a leading `*.` wildcard. The config is read from `BROKER_CONFIG` (default `/etc/broker/config.json`):
 
@@ -56,6 +57,8 @@ Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstream
   ]
 }
 ```
+
+Mail is quarantined from the main agent. The gateway's tools (`src/claude/mail.ts`) belong to a `mail-reader` subagent that can't use anything else, and hooks stop every other agent and tool from reaching them or the gateway. Email can carry prompt injection, so its text only reaches an agent that can't act on it, and the main agent gets summaries.
 
 The CA is generated once per pod in a sidecar-only volume. Only the certificate (`/run/broker-ca/ca.pem`) and a system bundle that includes it (`bundle.pem`) are shared with the agent. The sidecar also runs `ssh-agent` on `SSH_AUTH_SOCK` with the keys in `SSH_KEY_FILES` (space-separated), so the agent can use SSH keys without reading them.
 
