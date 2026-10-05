@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { type Message, MessageFlags, type SendableChannels } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
@@ -305,4 +308,32 @@ test('error includes the recent tool trail with full input', async () => {
 		errorMessage.includes('gh api repos/foo/bar'),
 		`expected full command in error trail, got: ${JSON.stringify(errorMessage)}`,
 	);
+});
+
+test('attaches a mentioned file to the message that mentions it', async () => {
+	const directory = mkdtempSync(join(tmpdir(), 'wicek-'));
+	const screenshot = join(directory, 'status.png');
+	const unmentioned = join(directory, 'blank.png');
+	writeFileSync(screenshot, 'png');
+	writeFileSync(unmentioned, 'png');
+
+	const attachedFiles: unknown[][] = [];
+	const channel = {
+		send: async () => ({
+			edit: async (payload: { files?: unknown[] }) => {
+				if (payload.files) attachedFiles.push(payload.files);
+			},
+		}),
+	} as unknown as SendableChannels;
+
+	await streamToDiscord(
+		events(
+			{ type: 'text', content: `Flight status: ${screenshot}` },
+			{ type: 'result', sessionId: 's1', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+
+	assert.equal(attachedFiles.length, 1);
+	assert.equal(attachedFiles[0].length, 1);
 });

@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Client, MessageFlags, type User } from 'discord.js';
+import { type Client, type Message, MessageFlags, type User } from 'discord.js';
 import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { streamAgent } from '../claude/agent.ts';
+import { attachMentionedFiles } from '../stream/discord.ts';
 import logger from '../utils/logger.ts';
 
 export interface CronJobDef {
@@ -104,13 +105,15 @@ export async function executeJob(
 	}
 
 	try {
-		const chunks = splitMessage(text);
-		for (const chunk of chunks) {
-			await user.send({
+		const posts = new Map<Message, string>();
+		for (const chunk of splitMessage(text)) {
+			const message = await user.send({
 				content: chunk,
 				flags: MessageFlags.SuppressEmbeds,
 			});
+			posts.set(message, chunk);
 		}
+		await attachMentionedFiles(posts);
 		logger.info({ name: job.name, chars: text.length }, 'Cron job delivered');
 	} catch (error) {
 		logger.error({ error, name: job.name }, 'Cron job delivery failed');

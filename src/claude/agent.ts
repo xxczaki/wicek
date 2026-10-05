@@ -1,6 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import logger from '../utils/logger.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
+import { agentEnv, REDACTION_HOOKS } from './secrets.ts';
 
 export type { AgentEvent } from './events.ts';
 
@@ -44,6 +45,8 @@ export async function* streamAgent(
 				settingSources: ['user', 'project', 'local'],
 				systemPrompt: { type: 'preset', preset: 'claude_code' },
 				abortController: options.abortController,
+				env: agentEnv(),
+				hooks: REDACTION_HOOKS,
 			},
 		});
 
