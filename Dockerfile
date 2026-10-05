@@ -13,7 +13,7 @@ FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
 FROM node:24.21.0-alpine
-RUN apk add --no-cache bash openssh-client git curl
+RUN apk add --no-cache bash openssh-client git curl jq sqlite
 WORKDIR /app
 
 # Authenticate HTTPS git operations through gh (mounted at /usr/local/bin/gh
