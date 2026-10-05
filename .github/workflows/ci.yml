@@ -88,14 +88,14 @@ jobs:
           fetch-tags: true
           path: charts-repo
       - name: Update image tag and appVersion
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@v4.54.1
         with:
           cmd: |
             yq -i '.image.tag = "${{ github.sha }}"' 'charts-repo/charts/wicek/values.yaml'
             yq -i '.appVersion = "${{ github.sha }}"' 'charts-repo/charts/wicek/Chart.yaml'
       - name: Get current version
         id: currentVersion
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@v4.54.1
         with:
           cmd: yq '.version' charts-repo/charts/wicek/Chart.yaml
       - name: Get previous tag
@@ -104,7 +104,7 @@ jobs:
           TAG=$(git -C charts-repo tag --sort=-version:refname | grep '^wicek-' | head -1)
           echo "tag=${TAG:-wicek-${{ steps.currentVersion.outputs.result }}}" >> "$GITHUB_OUTPUT"
       - name: Update chart version
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@v4.54.1
         if: steps.previousTag.outputs.tag == format('wicek-{0}', steps.currentVersion.outputs.result)
         env:
           PREVIOUS_VERSION: ${{ steps.currentVersion.outputs.result }}
