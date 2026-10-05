@@ -101,6 +101,7 @@ Read-only by default. Confirm before changing firewall rules, DNS, or network co
 
 - **WebFetch/WebSearch** – read-only page content, quick lookups, search results. Use by default.
 - **chrome-devtools MCP** – interactive browser: click, type, fill forms, take screenshots, run JS, read console. Use when you need to see how a page looks, interact with a web app, or debug frontend issues.
+- **Fallback** – when WebFetch or curl is blocked (403, 429, bot check, consent wall, empty JS-rendered page), open the same URL in the chrome-devtools browser and read it with `take_snapshot` or `evaluate_script`. Any source allowlist from the task or subagent still applies.
 
 ## Code Style
 
