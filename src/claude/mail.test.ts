@@ -61,6 +61,13 @@ test('keeps the mail-reader agent away from every other tool', async () => {
 	}
 });
 
+test('lets the mail-reader agent hand its report back', async () => {
+	assert.equal(
+		await decide('SubagentHandback', { result: 'summary' }, MAIL_AGENT),
+		undefined,
+	);
+});
+
 test('blocks other tools from reaching the mail gateway directly', async () => {
 	assert.equal(
 		await decide(

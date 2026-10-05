@@ -1,3 +1,4 @@
+import { get } from 'node:http';
 import {
 	type AgentDefinition,
 	createSdkMcpServer,
@@ -18,6 +19,7 @@ const MAIL_GATEWAY_URL = `http://${MAIL_GATEWAY_HOST}`;
 const MAIL_REQUEST_TIMEOUT_MS = 60_000;
 const MAIL_AGENT_MAX_TURNS = 25;
 const READ_ONLY = { annotations: { readOnlyHint: true } };
+const SUBAGENT_HANDBACK_TOOL = 'SubagentHandback';
 
 const MAIL_AGENT_PROMPT = `You read the user's iCloud mail and report back to the agent that delegated to you. You have read-only mail tools and nothing else.
 
@@ -102,7 +104,11 @@ async function guardMailAccess(input: HookInput): Promise<HookJSONOutput> {
 	const isMailAgent =
 		Boolean(input.agent_id) && input.agent_type === MAIL_AGENT_NAME;
 
-	if (isMailAgent && !isMailTool) {
+	if (
+		isMailAgent &&
+		!isMailTool &&
+		input.tool_name !== SUBAGENT_HANDBACK_TOOL
+	) {
 		return deny(`The ${MAIL_AGENT_NAME} agent may only use the mail tools`);
 	}
 	if (isMailTool && !isMailAgent) {
@@ -142,12 +148,10 @@ async function requestGateway(
 	}
 
 	try {
-		const response = await fetch(url, {
-			signal: AbortSignal.timeout(MAIL_REQUEST_TIMEOUT_MS),
-		});
+		const { status, body } = await getThroughProxy(url);
 		return {
-			content: [{ type: 'text' as const, text: await response.text() }],
-			isError: !response.ok,
+			content: [{ type: 'text' as const, text: body }],
+			isError: status !== 200,
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -158,4 +162,29 @@ async function requestGateway(
 			isError: true,
 		};
 	}
+}
+
+// fetch tunnels plain-HTTP requests through CONNECT, which makes the broker
+// dial the made-up gateway host. node:http sends a regular proxy request
+// that the broker answers itself.
+function getThroughProxy(url: URL): Promise<{ status: number; body: string }> {
+	return new Promise((resolve, reject) => {
+		const request = get(
+			url,
+			{ timeout: MAIL_REQUEST_TIMEOUT_MS },
+			(response) => {
+				const chunks: Buffer[] = [];
+				response.on('data', (chunk: Buffer) => chunks.push(chunk));
+				response.on('error', reject);
+				response.on('end', () =>
+					resolve({
+						status: response.statusCode ?? 0,
+						body: Buffer.concat(chunks).toString('utf8'),
+					}),
+				);
+			},
+		);
+		request.on('timeout', () => request.destroy(new Error('timed out')));
+		request.on('error', reject);
+	});
 }
