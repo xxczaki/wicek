@@ -18,6 +18,16 @@ RUN node esbuild.js
 FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
+FROM mitmproxy/mitmproxy:12.2.3 AS broker
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openssh-client && \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY broker/credentials.py broker/entrypoint.sh ./
+ENV PYTHONUNBUFFERED=1
+USER 1000
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 FROM base
 RUN apk add --no-cache bash openssh-client git curl jq sqlite
 

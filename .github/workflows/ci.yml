@@ -41,9 +41,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  broker:
+    name: Broker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - run: pip install mitmproxy==12.2.3 pytest ruff
+      - run: ruff format --check broker && ruff check broker
+      - run: pytest broker
+
   deploy:
     if: github.ref == 'refs/heads/main'
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, broker]
     permissions:
       contents: read
       packages: write
@@ -77,6 +89,26 @@ jobs:
           platforms: linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Extract broker metadata
+        id: brokerMeta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/xxczaki/wicek-broker
+          flavor: |
+            latest=true
+          tags: |
+            type=sha,prefix=,format=long
+      - name: Build and push broker
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: broker
+          push: true
+          platforms: linux/arm64
+          tags: ${{ steps.brokerMeta.outputs.tags }}
+          annotations: ${{ steps.brokerMeta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Checkout charts repo
