@@ -7,9 +7,11 @@ import {
 	type SendableChannels,
 } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
+import { redactSecrets } from '../claude/secrets.ts';
 import logger from '../utils/logger.ts';
 
 const SAFE_LIMIT = 1900;
+const MAX_FILES_PER_MESSAGE = 10;
 const FLUSH_INTERVAL_MS = 1500;
 const TOOL_INPUT_LIMIT = 200;
 
@@ -23,12 +25,22 @@ export async function streamToDiscord(
 	let lastFlush = 0;
 	let sessionId = '';
 	let resultText = '';
-	let allText = '';
 	let isThinking = false;
 	let gotResult = false;
 	let gotError = false;
-	const writtenFiles: string[] = [];
 	const recentTools: string[] = [];
+	const posts = new Map<Message, string>();
+
+	async function post(content: string) {
+		const message = await sendText(channel, content);
+		posts.set(message, content);
+		return message;
+	}
+
+	async function update(message: Message, content: string) {
+		await editText(message, content);
+		posts.set(message, content);
+	}
 
 	async function flush() {
 		if (!buffer) return;
@@ -41,18 +53,18 @@ export async function streamToDiscord(
 			if (isThinking && !buffer.startsWith('>')) buffer = `> ${buffer}`;
 
 			if (currentMessage) {
-				await editText(currentMessage, chunk);
+				await update(currentMessage, chunk);
 			} else {
-				await sendText(channel, chunk);
+				await post(chunk);
 			}
 			currentMessage = null;
 		}
 
 		if (!buffer) return;
 		if (!currentMessage) {
-			currentMessage = await sendText(channel, buffer);
+			currentMessage = await post(buffer);
 		} else {
-			await editText(currentMessage, buffer);
+			await update(currentMessage, buffer);
 		}
 		lastFlush = Date.now();
 	}
@@ -66,12 +78,8 @@ export async function streamToDiscord(
 	try {
 		for await (const event of events) {
 			switch (event.type) {
-				case 'thinking': {
-					// Internal reasoning — kept off Discord, but still tracked for
-					// file-path extraction in the final output.
-					allText += event.content;
+				case 'thinking':
 					break;
-				}
 
 				case 'text': {
 					if (isThinking) {
@@ -80,7 +88,6 @@ export async function streamToDiscord(
 						isThinking = false;
 					}
 					buffer += event.content;
-					allText += event.content;
 
 					if (
 						buffer.length > SAFE_LIMIT ||
@@ -103,7 +110,7 @@ export async function streamToDiscord(
 					const toolLine = `-# ${compactToolLabel(event.name, event.input)}\n`;
 
 					if (!buffer && !currentMessage) {
-						currentMessage = await sendText(channel, toolLine);
+						currentMessage = await post(toolLine);
 						lastFlush = Date.now();
 					} else {
 						buffer += toolLine;
@@ -113,14 +120,6 @@ export async function streamToDiscord(
 						)
 							await flush();
 					}
-
-					if (event.filePath && event.name !== 'Read')
-						writtenFiles.push(event.filePath);
-					break;
-				}
-
-				case 'tool_end': {
-					if (event.filePath) writtenFiles.push(event.filePath);
 					break;
 				}
 
@@ -167,7 +166,7 @@ export async function streamToDiscord(
 			await sendText(channel, '*(No response)*');
 		}
 
-		await sendFileAttachments(channel, allText || resultText, writtenFiles);
+		await attachMentionedFiles(posts);
 	} catch (error) {
 		logger.error({ error }, 'Stream-to-Discord failed');
 		await sendText(
@@ -180,11 +179,17 @@ export async function streamToDiscord(
 }
 
 function sendText(channel: SendableChannels, content: string) {
-	return channel.send({ content, flags: MessageFlags.SuppressEmbeds });
+	return channel.send({
+		content: redactSecrets(content),
+		flags: MessageFlags.SuppressEmbeds,
+	});
 }
 
 function editText(message: Message, content: string) {
-	return message.edit({ content, flags: MessageFlags.SuppressEmbeds });
+	return message.edit({
+		content: redactSecrets(content),
+		flags: MessageFlags.SuppressEmbeds,
+	});
 }
 
 function findSplitPoint(text: string): number {
@@ -260,29 +265,27 @@ function isInsideGitRepo(path: string): boolean {
 	}
 }
 
+export async function attachMentionedFiles(posts: Map<Message, string>) {
+	const attached = new Set<string>();
+
+	for (const [message, content] of posts) {
+		const paths = extractFilePaths(content)
+			.filter((path) => !attached.has(path))
+			.slice(0, MAX_FILES_PER_MESSAGE);
+		if (paths.length === 0) continue;
+
+		for (const path of paths) attached.add(path);
+		try {
+			await message.edit({
+				files: paths.map((path) => new AttachmentBuilder(path)),
+			});
+		} catch (error) {
+			logger.error({ error, paths }, 'Failed to attach files');
+		}
+	}
+}
+
 function extractFilePaths(text: string): string[] {
 	const matches = text.match(FILE_PATH_REGEX) || [];
 	return [...new Set(matches)].filter(isSendableArtifact);
-}
-
-async function sendFileAttachments(
-	channel: SendableChannels,
-	text: string,
-	writtenFiles: string[],
-) {
-	const toolFiles = writtenFiles.filter(isSendableArtifact);
-	const paths = toolFiles.length > 0 ? toolFiles : extractFilePaths(text);
-	const uniquePaths = [...new Set(paths)];
-
-	if (uniquePaths.length === 0) return;
-
-	const attachments = uniquePaths.map((p) => new AttachmentBuilder(p));
-	try {
-		await channel.send({ files: attachments });
-	} catch (error) {
-		logger.error(
-			{ error, paths: uniquePaths },
-			'Failed to send file attachments',
-		);
-	}
 }

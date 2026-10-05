@@ -54,7 +54,6 @@ test('maps tool_use blocks from an assistant message to tool_start events', () =
 	assert.equal(events[0].type, 'tool_start');
 	if (events[0].type === 'tool_start') {
 		assert.equal(events[0].name, 'Read');
-		assert.equal(events[0].filePath, '/tmp/x.png');
 		assert.equal(events[0].input, '/tmp/x.png');
 	}
 });
@@ -72,14 +71,14 @@ test('summarizes Bash tool input as the command', () => {
 	if (events[0].type === 'tool_start') assert.equal(events[0].input, 'ls -la');
 });
 
-test('maps tool_result blocks from a user message to tool_end events', () => {
+test('ignores tool_result blocks from a user message', () => {
 	const events = map({
 		type: 'user',
 		message: {
 			content: [{ type: 'tool_result', content: 'done' }],
 		},
 	});
-	assert.deepEqual(events, [{ type: 'tool_end', filePath: undefined }]);
+	assert.deepEqual(events, []);
 });
 
 test('maps a successful result to a result event with session and cost', () => {

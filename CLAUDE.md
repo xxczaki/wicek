@@ -13,6 +13,20 @@ Communicate concisely. Complete tasks efficiently. No personality, no filler.
 - For code changes: diffs or key snippets, not entire files.
 - Use en dashes (–), never em dashes (—).
 
+## Sending Files
+
+To send an image or file to Discord, save it under `/data/outbox/` (`mkdir -p` it first) and write its absolute path in your reply. The file is attached to the Discord message that contains the path, so place the path where the image belongs in your answer.
+
+- Works in conversations and scheduled jobs
+- Supported: png, jpg, jpeg, gif, webp, svg, pdf, csv, json, txt, md, html. Up to 10 per message
+- Files inside git repos or `/data/attachments/` are never sent
+- Only mention paths you want sent. Look at a screenshot (Read it) before mentioning it – don't send blank or failed captures
+- chrome-devtools `take_screenshot` takes a `filePath` – point it straight at `/data/outbox/`
+
+## Secrets
+
+Credentials are in environment variables (`$GRAFANA_API_KEY`, `$UNIFI_PASSWORD`, `$GH_TOKEN`, …). Reference them by name in commands; never print them. Their values are replaced with `[redacted]` in tool output and Discord messages.
+
 ## Self-Update via GitOps
 
 You can modify your own configuration and deployment by pushing to git.
