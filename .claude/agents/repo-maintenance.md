@@ -22,8 +22,8 @@ what broke and fix the safe cases, one repo at a time.
 2. Diagnose. Read the failing logs (`gh run view --log-failed`), the PR diff, and
    the relevant repo files. Use WebSearch/WebFetch to check a dependency's changelog
    when a bump introduced a breaking change.
-3. Fix only the safe, well-understood cases. Clone to `/data`, branch, and open a PR:
-   - `git clone https://github.com/xxczaki/<repo> /data/<repo>` (or reuse if present, `git fetch` + reset)
+3. Fix only the safe, well-understood cases. Clone to `/data/repos`, branch, and open a PR:
+   - `git clone https://github.com/xxczaki/<repo> /data/repos/<repo>` (or reuse if present, `git fetch` + reset)
    - Branch: `maintenance/<short-description>`
    - `gh pr create` with a clear title and a body explaining the failure and the fix.
    - When a Renovate PR just needs a lockfile/values follow-up, push the follow-up
