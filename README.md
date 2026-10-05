@@ -35,28 +35,29 @@ Runs on a single-node K3s cluster (Raspberry Pi 4). See [xxczaki/homelab](https:
 
 ### Credential broker
 
-Service credentials live in a sidecar (`ghcr.io/xxczaki/wicek-broker`, source in `src/broker/`), not in the agent container. Each route listens on its own `127.0.0.1` port, adds auth, and forwards to one fixed upstream:
+Service credentials live in a sidecar (`ghcr.io/xxczaki/wicek-broker`, source in `broker/`), not in the agent container. It is [mitmproxy](https://mitmproxy.org/) with a small add-on, listening on `127.0.0.1:3128`. The agent container sends its traffic through it via `HTTP(S)_PROXY` and trusts the broker's CA, so tools call the real URLs with placeholder credentials and the broker swaps in the real ones.
 
-- `bearer` – adds `Authorization: Bearer <tokenFile>`
-- `home-assistant` – same as `bearer`, plus `POST /_ws` with `{"type": "...", ...}` to run one WebSocket command and return its result
+Only hosts listed in the config are intercepted. Everything else is tunneled through untouched, and the hosts in `NO_PROXY` (Claude API, Discord) bypass it. For a listed host, the broker drops client `Authorization`/`Cookie`/CSRF headers, adds its own, removes `Set-Cookie` and CSRF headers from the response, and logs one line per request without bodies or query strings. Auth types:
+
+- `bearer` – `Authorization: Bearer <tokenFile>`
+- `basic` – `Authorization: Basic` from `username` or `usernameFile`, plus `passwordFile`
+- `home-assistant` – `bearer`, plus the `access_token` in the WebSocket `auth` message
 - `unifi` – logs in with `usernameFile`/`passwordFile`, keeps the `TOKEN` cookie and CSRF token, logs in again after a 401
 
-Optional per route: `methods` (allowlist) and `insecureTls` (self-signed upstreams). Client `Authorization`/`Cookie`/CSRF headers are dropped, `Set-Cookie` and CSRF headers are stripped from responses, and every request is logged without bodies. Routes are read from `BROKER_CONFIG` (default `/etc/broker/routes.json`):
+Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstreams). Hosts may use a leading `*.` wildcard. The config is read from `BROKER_CONFIG` (default `/etc/broker/config.json`):
 
 ```json
 {
-  "routes": [
+  "hosts": [
     {
-      "name": "grafana",
-      "port": 8181,
-      "upstream": "https://parsify.grafana.net",
+      "host": "parsify.grafana.net",
       "auth": { "type": "bearer", "tokenFile": "/run/broker/grafana-cloud/credential" }
     }
   ]
 }
 ```
 
-The sidecar also runs `ssh-agent` on `SSH_AUTH_SOCK` with the keys in `SSH_KEY_FILES` (space-separated), so the agent can use SSH keys without reading them.
+The CA is generated once per pod in a sidecar-only volume. Only the certificate (`/run/broker-ca/ca.pem`) and a system bundle that includes it (`bundle.pem`) are shared with the agent. The sidecar also runs `ssh-agent` on `SSH_AUTH_SOCK` with the keys in `SSH_KEY_FILES` (space-separated), so the agent can use SSH keys without reading them.
 
 ## AI disclosure
 
