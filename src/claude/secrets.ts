@@ -5,7 +5,7 @@ import type {
 	HookJSONOutput,
 } from '@anthropic-ai/claude-agent-sdk';
 
-const HIDDEN_FROM_AGENT = ['DISCORD_TOKEN', 'HA_TOKEN'];
+const HIDDEN_FROM_AGENT = ['DISCORD_TOKEN'];
 
 const SECRET_ENV_NAMES = [
 	'APPLE_APP_PASSWORD',
