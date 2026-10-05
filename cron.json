@@ -1,9 +1,9 @@
 [
   {
     "name": "etf-update",
-    "schedule": "45 17 * * 5",
+    "schedule": "15 18 * * 5",
     "timezone": "Europe/Berlin",
-    "prompt": "Use the etf-analyst subagent to produce this week's recap (Friday close vs the prior Friday close) for two funds. Report prices in EUR and follow the subagent's TL;DR format.\n\nDFEU.AS – iShares Europe Defence UCITS ETF (Euronext Amsterdam). Top holdings: Rolls-Royce, Rheinmetall, BAE Systems, Thales, Leonardo.\nSEC0.DE – iShares MSCI Global Semiconductors UCITS ETF (Xetra, ISIN IE000I8KRLL9; this is the global-semis fund, currently trading around €18, not the European SRI ticker). Top holdings: ASML, TSMC, Broadcom, AMD, Micron.\n\nVerify the current price of each before reporting; do not anchor on past prices.",
+    "prompt": "Use the etf-analyst subagent to produce this week's recap (Friday close vs the prior Friday close) for DFEU.AS (iShares Europe Defence UCITS ETF, Euronext Amsterdam) and SEC0.DE (iShares MSCI Global Semiconductors UCITS ETF, Xetra, ISIN IE000I8KRLL9). Prices in EUR. Prices, holdings and allocation changes come from the etf skill script, not from memory. Follow the subagent's format.",
     "targetUserId": "349213466743013376"
   },
   {
