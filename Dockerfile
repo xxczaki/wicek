@@ -1,7 +1,10 @@
-FROM node:24.21.0-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:24.21.0-alpine AS base
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN npm install --global --no-fund --no-audit \
+    "pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+
+FROM base AS deps
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
@@ -12,9 +15,8 @@ RUN node esbuild.js
 FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24.21.0-alpine
+FROM base
 RUN apk add --no-cache bash openssh-client git curl jq sqlite
-WORKDIR /app
 
 # Authenticate HTTPS git operations through gh (mounted at /usr/local/bin/gh
 # at runtime), using GH_TOKEN. System-level so it survives pod restarts,
