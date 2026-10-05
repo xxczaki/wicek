@@ -23,7 +23,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY broker/credentials.py broker/entrypoint.sh ./
+COPY broker/credentials.py broker/mail.py broker/entrypoint.sh ./
 ENV PYTHONUNBUFFERED=1
 USER 1000
 ENTRYPOINT ["/app/entrypoint.sh"]

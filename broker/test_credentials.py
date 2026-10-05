@@ -11,6 +11,7 @@ from mitmproxy.test import taddons, tflow
 from mitmproxy.websocket import WebSocketData, WebSocketMessage
 from wsproto.frame_protocol import Opcode
 
+import mail
 from credentials import CredentialBroker, Rule, host_pattern
 
 
@@ -229,3 +230,38 @@ def test_streams_server_sent_events_and_strips_headers_up_front(secret):
 
     assert flow.response.stream is True
     assert "set-cookie" not in flow.response.headers
+
+
+def test_answers_imap_hosts_from_the_mail_gateway(secret, monkeypatch):
+    calls = []
+
+    def respond(request, server, username, password):
+        calls.append((request.path, server, username, password))
+        return http.Response.make(200, b"{}")
+
+    monkeypatch.setattr(mail, "respond", respond)
+    broker = CredentialBroker(
+        [
+            Rule(
+                host="imap.broker",
+                methods=["GET"],
+                auth={
+                    "type": "imap",
+                    "server": "imap.mail.me.com",
+                    "usernameFile": secret("mail-username", "me@icloud.com"),
+                    "passwordFile": secret("mail-password", "app-pass"),
+                },
+            )
+        ]
+    )
+    read = make_flow("http://imap.broker/search?from=alice")
+    write = make_flow("http://imap.broker/message?uid=1", method="DELETE")
+
+    run(broker, "request", read)
+    run(broker, "request", write)
+
+    assert read.response.status_code == 200
+    assert calls == [
+        ("/search?from=alice", "imap.mail.me.com", "me@icloud.com", "app-pass")
+    ]
+    assert write.response.status_code == 405
