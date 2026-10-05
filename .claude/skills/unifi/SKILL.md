@@ -117,5 +117,3 @@ Read-only by default. For any write (radios, WLANs, firewall, DNS, networks, res
 6. **Record:** append time, controller, change, reason, snapshot path, settle time and result to
    `/data/unifi/changes.md`, and save a memory with the applied state and what to check next.
 7. **Roll back** by putting back the snapshot's values for the same fields if verification fails.
-
-For visual or UI-only tasks, drive the console UI with the chrome-devtools MCP.
