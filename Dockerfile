@@ -18,6 +18,15 @@ RUN node esbuild.js
 FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
+FROM node:24.21.0-alpine AS broker
+RUN apk add --no-cache openssh-client
+WORKDIR /app
+COPY --from=build /app/dist/broker/ ./broker/
+COPY src/broker/entrypoint.sh ./
+ENV NODE_ENV=production
+USER node
+CMD ["/app/entrypoint.sh"]
+
 FROM base
 RUN apk add --no-cache bash openssh-client git curl jq sqlite
 

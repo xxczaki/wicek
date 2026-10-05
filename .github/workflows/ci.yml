@@ -79,6 +79,26 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Extract broker metadata
+        id: brokerMeta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/xxczaki/wicek-broker
+          flavor: |
+            latest=true
+          tags: |
+            type=sha,prefix=,format=long
+      - name: Build and push broker
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: broker
+          push: true
+          platforms: linux/arm64
+          tags: ${{ steps.brokerMeta.outputs.tags }}
+          annotations: ${{ steps.brokerMeta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Checkout charts repo
         uses: actions/checkout@v7
         with:
