@@ -32,7 +32,7 @@ const READER_RULES = `You answer one question by calling an HTTPS API with Bash 
 - Answer concisely in Discord markdown. No tables.${
 	READER_CALLBACK_URL
 		? `
-- If the user has to log in in a browser and be redirected back, use ${READER_CALLBACK_URL} as the redirect URL with a random state (cat /proc/sys/kernel/random/uuid). Write that state to ${PENDING_CALLBACK_PATH}, then answer with the login link. The redirect arrives later as a new question with its query parameters, already checked against that state.`
+- If the user has to log in in a browser and be redirected back, use ${READER_CALLBACK_URL} as the redirect URL with a random state (cat /proc/sys/kernel/random/uuid). Write that state to ${PENDING_CALLBACK_PATH}, then answer with the login link. The redirect arrives later as a new question with its query parameters – the server verifies the state and deletes the file before you see it.`
 		: ''
 }`;
 
@@ -67,7 +67,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
 			respond(response, 404, { error: 'No pending callback' });
 			return;
 		}
-		const question = `Your redirect came back to ${READER_CALLBACK_URL} with these query parameters: ${JSON.stringify(params)}. Finish the flow you started and confirm the result.`;
+		const question = `Your redirect came back to ${READER_CALLBACK_URL} with these query parameters: ${JSON.stringify(params)}. The server already verified the state and deleted ${PENDING_CALLBACK_PATH}, so don't check it again. Finish the flow you started and confirm the result.`;
 		respond(response, 200, { answer: await enqueue(question) });
 		return;
 	}

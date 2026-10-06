@@ -36,7 +36,7 @@ export function createReaderMcpServers(
 			tools: [
 				tool(
 					'ask_reader',
-					`Ask an isolated reader a question about data you can't access yourself. The reader posts its answer straight to the user, and you never see it – only whether it was delivered. Include everything the reader needs in the question, e.g. a code the user pasted. Readers:\n${readerList}`,
+					`Ask an isolated reader a question about data you can't access yourself. The reader posts its answer straight to the user, and you never see it – only whether it was delivered. Include everything the reader needs in the question. Readers:\n${readerList}`,
 					{
 						reader: z.enum([firstName, ...otherNames]),
 						question: z.string().min(1),

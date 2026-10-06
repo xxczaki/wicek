@@ -97,8 +97,8 @@ Auth: none needed, the broker adds the API key
 Some data is only reachable through isolated readers – separate VMs with their own credential broker that can only reach one API. Use the `ask_reader` tool (it lists the available readers).
 
 - The reader's answer goes straight to the user. You never see it – don't guess or summarize what it said, ask the user if you need something from it
-- Put everything the reader needs in the question, including codes or links the user pasted for it
-- If the user replies with something meant for the reader (e.g. a code after connecting an account), pass it on with `ask_reader`
+- Put everything the reader needs in the question
+- Browser logins (e.g. connecting a bank) come back to the reader on their own and it confirms them to the user directly. Don't ask the user to paste codes – if they paste one anyway, tell them it isn't needed
 
 ## Email
 
