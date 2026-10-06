@@ -265,3 +265,28 @@ def test_reports_login_failures_as_bad_gateway(imap_server):
 
     assert status == 502
     assert "Authentication failed" in body["error"]
+
+
+def test_downloads_an_attachment_without_marking_the_message_seen(imap_server):
+    request = http.Request.make("GET", "http://imap.broker/attachment?uid=7&index=0")
+    response = mail.respond(
+        request, "imap.mail.me.com", "antoni@icloud.com", "app-password"
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"%PDF-1.7"
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["x-filename"] == "invoice.pdf"
+    assert_read_only(imap_server.commands)
+
+
+@pytest.mark.parametrize(
+    ("path", "status"),
+    [
+        ("/attachment?uid=7&index=1", 404),
+        ("/attachment?uid=7&index=-1", 400),
+        ("/attachment?uid=3&index=0", 404),
+    ],
+)
+def test_rejects_missing_or_invalid_attachments(imap_server, path, status):
+    assert call(path)[0] == status

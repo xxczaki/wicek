@@ -9,6 +9,7 @@ from datetime import date
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 from urllib.parse import parse_qs, urlsplit
+from urllib.parse import quote as percent_encode
 
 from mitmproxy import http
 
@@ -18,6 +19,7 @@ DEFAULT_FOLDER = "INBOX"
 DEFAULT_SEARCH_LIMIT = 20
 MAX_SEARCH_LIMIT = 100
 MAX_BODY_CHARACTERS = 20_000
+MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 SUMMARY_HEADERS = "FROM TO CC SUBJECT DATE"
 TEXT_FILTERS = {"from": "FROM", "to": "TO", "subject": "SUBJECT", "text": "TEXT"}
 DATE_FILTERS = {"since": "SINCE", "before": "BEFORE"}
@@ -82,7 +84,10 @@ def respond(
     try:
         with connect(server) as mailbox:
             mailbox.login(username, password)
-            return json_response(200, handler(mailbox, params))
+            result = handler(mailbox, params)
+            if isinstance(result, http.Response):
+                return result
+            return json_response(200, result)
     except MailError as error:
         return json_response(error.status, {"error": str(error)})
     except (imaplib.IMAP4.error, OSError) as error:
@@ -142,18 +147,7 @@ def search_messages(mailbox: imaplib.IMAP4, params: dict[str, str]) -> dict:
 
 
 def read_message(mailbox: imaplib.IMAP4, params: dict[str, str]) -> dict:
-    uid = params.get("uid", "")
-    if not uid.isdigit():
-        raise MailError(400, "uid must be a number from /search")
-    examine(mailbox, params.get("folder", DEFAULT_FOLDER))
-
-    _, fetched = mailbox.uid("FETCH", uid, "(UID FLAGS BODY.PEEK[])")
-    records = fetch_records(fetched)
-    if not records:
-        raise MailError(404, f"No message with uid {uid}")
-
-    metadata, payload = records[0]
-    message = parse_message(payload)
+    metadata, message = fetch_message(mailbox, params)
     text = body_text(message)
     return {
         **summarize(metadata, message),
@@ -170,11 +164,54 @@ def read_message(mailbox: imaplib.IMAP4, params: dict[str, str]) -> dict:
     }
 
 
+def download_attachment(
+    mailbox: imaplib.IMAP4, params: dict[str, str]
+) -> http.Response:
+    index = params.get("index", "")
+    if not index.isdigit():
+        raise MailError(400, "index must be a number from /message attachments")
+    _, message = fetch_message(mailbox, params)
+
+    attachments = list(message.iter_attachments())
+    if int(index) >= len(attachments):
+        raise MailError(404, f"No attachment at index {index}")
+    part = attachments[int(index)]
+    content = part.get_payload(decode=True) or b""
+    if len(content) > MAX_ATTACHMENT_BYTES:
+        raise MailError(413, f"Attachment is larger than {MAX_ATTACHMENT_BYTES} bytes")
+
+    return http.Response.make(
+        200,
+        content,
+        {
+            "content-type": part.get_content_type(),
+            "x-filename": percent_encode(part.get_filename() or f"attachment-{index}"),
+        },
+    )
+
+
 ROUTES = {
     "/folders": list_folders,
     "/search": search_messages,
     "/message": read_message,
+    "/attachment": download_attachment,
 }
+
+
+def fetch_message(
+    mailbox: imaplib.IMAP4, params: dict[str, str]
+) -> tuple[bytes, EmailMessage]:
+    uid = params.get("uid", "")
+    if not uid.isdigit():
+        raise MailError(400, "uid must be a number from /search")
+    examine(mailbox, params.get("folder", DEFAULT_FOLDER))
+
+    _, fetched = mailbox.uid("FETCH", uid, "(UID FLAGS BODY.PEEK[])")
+    records = fetch_records(fetched)
+    if not records:
+        raise MailError(404, f"No message with uid {uid}")
+    metadata, payload = records[0]
+    return metadata, parse_message(payload)
 
 
 def search_criteria(params: dict[str, str]) -> list[str]:
