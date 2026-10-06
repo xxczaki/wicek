@@ -6,6 +6,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from mitmproxy import http
 from mitmproxy.test import taddons, tflow
 from mitmproxy.websocket import WebSocketData, WebSocketMessage
@@ -59,6 +61,48 @@ def test_injects_bearer_and_strips_client_credentials(secret):
 
     assert flow.request.headers["authorization"] == "Bearer glc_real"
     assert "cookie" not in flow.request.headers
+
+
+@pytest.mark.parametrize("flatten", [False, True])
+def test_signs_enable_banking_jwt(secret, flatten):
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    broker = CredentialBroker(
+        [
+            Rule(
+                host="api.enablebanking.com",
+                auth={
+                    "type": "enable-banking",
+                    "applicationIdFile": secret("application-id", "app-123"),
+                    "privateKeyFile": secret(
+                        "private-key", pem.replace("\n", " ") if flatten else pem
+                    ),
+                },
+            )
+        ]
+    )
+    flow = make_flow(
+        "https://api.enablebanking.com/aspsps",
+        headers={"authorization": "Bearer placeholder"},
+    )
+
+    run(broker, "request", flow)
+
+    scheme, token = flow.request.headers["authorization"].split(" ")
+    header, claims, signature = token.split(".")
+    private_key.public_key().verify(
+        decode_base64url(signature),
+        f"{header}.{claims}".encode(),
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
+    assert scheme == "Bearer"
+    assert json.loads(decode_base64url(header))["kid"] == "app-123"
+    assert json.loads(decode_base64url(claims))["aud"] == "api.enablebanking.com"
 
 
 def test_leaves_unlisted_hosts_untouched(secret):
@@ -265,3 +309,7 @@ def test_answers_imap_hosts_from_the_mail_gateway(secret, monkeypatch):
         ("/search?from=alice", "imap.mail.me.com", "me@icloud.com", "app-pass")
     ]
     assert write.response.status_code == 405
+
+
+def decode_base64url(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))

@@ -42,6 +42,7 @@ Only hosts listed in the config are intercepted. Everything else is tunneled thr
 - `bearer` – `Authorization: Bearer <tokenFile>`
 - `basic` – `Authorization: Basic` from `username` or `usernameFile`, plus `passwordFile`
 - `home-assistant` – `bearer`, plus the `access_token` in the WebSocket `auth` message
+- `enable-banking` – `Authorization: Bearer` with a short-lived RS256 JWT signed with `privateKeyFile`, its `kid` read from `applicationIdFile`
 - `unifi` – logs in with `usernameFile`/`passwordFile`, keeps the `TOKEN` cookie and CSRF token, logs in again after a 401
 - `imap` – the broker answers the request itself as a read-only mail gateway for `server` (port 993), logging in with `usernameFile`/`passwordFile`. Endpoints: `GET /folders`, `/search` (`folder`, `from`, `to`, `subject`, `text`, `since`, `before`, `unseen`, `limit`) `/message` (`folder`, `uid`) and `/attachment` (`folder`, `uid`, `index`, raw bytes up to 25 MB). It opens folders with `EXAMINE` and fetches with `BODY.PEEK`, so it can't change the mailbox or mark messages as read. Use a made-up host such as `http://imap.broker`
 
