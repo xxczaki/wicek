@@ -5,10 +5,13 @@ import json
 import os
 import re
 import ssl
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 from mitmproxy import ctx, http, tls
 from OpenSSL import SSL
 
@@ -16,6 +19,7 @@ import mail
 
 CONFIG_PATH = os.environ.get("BROKER_CONFIG", "/etc/broker/config.json")
 LOGIN_TIMEOUT_SECONDS = 15
+ENABLE_BANKING_TOKEN_LIFETIME_SECONDS = 3600
 
 STRIPPED_REQUEST_HEADERS = (
     "authorization",
@@ -171,6 +175,12 @@ class CredentialBroker:
             password = read_secret(auth["passwordFile"])
             encoded = base64.b64encode(f"{username}:{password}".encode()).decode()
             return {"authorization": f"Basic {encoded}"}
+        if auth["type"] == "enable-banking":
+            token = enable_banking_token(
+                read_secret(auth["applicationIdFile"]),
+                read_secret(auth["privateKeyFile"]),
+            )
+            return {"authorization": f"Bearer {token}"}
         if auth["type"] == "unifi":
             async with self.login_lock:
                 if not rule.unifi_session:
@@ -192,6 +202,36 @@ def host_pattern(host: str) -> str:
 def read_secret(path: str) -> str:
     with open(path) as secret_file:
         return secret_file.read().strip()
+
+
+def enable_banking_token(application_id: str, private_key_pem: str) -> str:
+    issued_at = int(time.time())
+    header = {"typ": "JWT", "alg": "RS256", "kid": application_id}
+    claims = {
+        "iss": "enablebanking.com",
+        "aud": "api.enablebanking.com",
+        "iat": issued_at,
+        "exp": issued_at + ENABLE_BANKING_TOKEN_LIFETIME_SECONDS,
+    }
+    signing_input = f"{base64url_json(header)}.{base64url_json(claims)}"
+    signature = load_private_key(private_key_pem).sign(
+        signing_input.encode(), padding.PKCS1v15(), hashes.SHA256()
+    )
+    return f"{signing_input}.{base64url(signature)}"
+
+
+def load_private_key(pem: str):
+    # 1Password fields can flatten the PEM onto one line, so decode the body directly
+    body = re.sub(r"-----[A-Z ]+-----|\s", "", pem)
+    return serialization.load_der_private_key(base64.b64decode(body), password=None)
+
+
+def base64url_json(value: dict) -> str:
+    return base64url(json.dumps(value, separators=(",", ":")).encode())
+
+
+def base64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
 def tls_context(rule: Rule) -> ssl.SSLContext:
