@@ -67,6 +67,8 @@ The CA is generated once per pod in a sidecar-only volume. Only the certificate 
 
 A reader answers questions about one untrusted data source (e.g. bank transactions) from a separate pod: `node dist/reader.js` running an Agent SDK query with only Bash, in a Kata VM. Its credential broker runs as its own pod outside the VM with `"blockUnlisted": true`, so the reader can reach only that broker, and the broker only the hosts in its config – everything else gets a 403. The main agent calls a reader with the `ask_reader` tool (`src/claude/readers.ts`, configured by the `READERS` env var), and the bot posts the answer straight to Discord, so the main agent never sees text a third party could have written.
 
+Readers whose API needs a browser login get a redirect URL, `READER_CALLBACK_URL` (`<webhooks host>/hooks/callback/<reader>`). The reader saves a random `state` to `<state dir>/pending-callback` before handing out the login link. When the browser comes back, the webhook server shows a static page and forwards the query to the reader's `POST /callback`, which compares `state` in code (constant time, single use) before the model sees anything. The answer is sent to the owner as a DM. Without a matching state the public route does nothing.
+
 The reader fetches the broker's CA from `http://mitm.it/cert/pem` through the broker before each question, since the broker generates a new one when it restarts. Its system prompt is the shared rules in `src/reader.ts` plus the reader's own prompt mounted at `READER_PROMPT_PATH`, and it keeps state in `READER_STATE_DIR`.
 
 ## AI disclosure
