@@ -105,6 +105,31 @@ def test_signs_enable_banking_jwt(secret, flatten):
     assert json.loads(decode_base64url(claims))["aud"] == "api.enablebanking.com"
 
 
+def test_blocks_unlisted_hosts_when_configured(secret):
+    broker = CredentialBroker(
+        [
+            Rule(
+                host="api.enablebanking.com",
+                auth={"type": "bearer", "tokenFile": secret("bank", "real")},
+            )
+        ],
+        block_unlisted=True,
+    )
+    tunnel = make_flow("https://attacker.example/", method="CONNECT")
+    plain = make_flow("http://attacker.example/leak")
+    onboarding = make_flow("http://mitm.it/cert/pem")
+    onboarding.response = http.Response.make(200, b"ca")
+
+    with taddons.context(broker):
+        broker.http_connect(tunnel)
+        asyncio.run(broker.request(plain))
+        asyncio.run(broker.request(onboarding))
+
+    assert tunnel.response.status_code == 403
+    assert plain.response.status_code == 403
+    assert onboarding.response.status_code == 200
+
+
 def test_leaves_unlisted_hosts_untouched(secret):
     broker = CredentialBroker(
         [

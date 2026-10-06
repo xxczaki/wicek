@@ -46,7 +46,7 @@ Only hosts listed in the config are intercepted. Everything else is tunneled thr
 - `unifi` – logs in with `usernameFile`/`passwordFile`, keeps the `TOKEN` cookie and CSRF token, logs in again after a 401
 - `imap` – the broker answers the request itself as a read-only mail gateway for `server` (port 993), logging in with `usernameFile`/`passwordFile`. Endpoints: `GET /folders`, `/search` (`folder`, `from`, `to`, `subject`, `text`, `since`, `before`, `unseen`, `limit`) `/message` (`folder`, `uid`) and `/attachment` (`folder`, `uid`, `index`, raw bytes up to 25 MB). It opens folders with `EXAMINE` and fetches with `BODY.PEEK`, so it can't change the mailbox or mark messages as read. Use a made-up host such as `http://imap.broker`
 
-Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstreams). Hosts may use a leading `*.` wildcard. The config is read from `BROKER_CONFIG` (default `/etc/broker/config.json`):
+Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstreams). Top-level `"blockUnlisted": true` rejects every host not in the list instead of tunneling it. Hosts may use a leading `*.` wildcard. The config is read from `BROKER_CONFIG` (default `/etc/broker/config.json`):
 
 ```json
 {
@@ -62,6 +62,12 @@ Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstream
 Mail is quarantined from the main agent. The gateway's tools (`src/claude/mail.ts`) belong to a `mail-reader` subagent that can't use anything else, and hooks stop every other agent and tool from reaching them or the gateway. Email can carry prompt injection, so its text only reaches an agent that can't act on it, and the main agent gets summaries.
 
 The CA is generated once per pod in a sidecar-only volume. Only the certificate (`/run/broker-ca/ca.pem`) and a system bundle that includes it (`bundle.pem`) are shared with the agent. The sidecar also runs `ssh-agent` on `SSH_AUTH_SOCK` with the keys in `SSH_KEY_FILES` (space-separated), so the agent can use SSH keys without reading them.
+
+### Readers
+
+A reader answers questions about one untrusted data source (e.g. bank transactions) from a separate pod: `node dist/reader.js` running an Agent SDK query with only Bash, in a Kata VM. Its credential broker runs as its own pod outside the VM with `"blockUnlisted": true`, so the reader can reach only that broker, and the broker only the hosts in its config – everything else gets a 403. The main agent calls a reader with the `ask_reader` tool (`src/claude/readers.ts`, configured by the `READERS` env var), and the bot posts the answer straight to Discord, so the main agent never sees text a third party could have written.
+
+The reader fetches the broker's CA from `http://mitm.it/cert/pem` through the broker before each question, since the broker generates a new one when it restarts. Its system prompt is the shared rules in `src/reader.ts` plus the reader's own prompt mounted at `READER_PROMPT_PATH`, and it keeps state in `READER_STATE_DIR`.
 
 ## AI disclosure
 

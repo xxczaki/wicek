@@ -92,6 +92,14 @@ Instance: https://parsify.grafana.net (org: parsify)
 Datasources: Prometheus (Mimir), Loki, Tempo, Pyroscope
 Auth: none needed, the broker adds the API key
 
+## Readers
+
+Some data is only reachable through isolated readers – separate VMs with their own credential broker that can only reach one API. Use the `ask_reader` tool (it lists the available readers).
+
+- The reader's answer goes straight to the user. You never see it – don't guess or summarize what it said, ask the user if you need something from it
+- Put everything the reader needs in the question, including codes or links the user pasted for it
+- If the user replies with something meant for the reader (e.g. a code after connecting an account), pass it on with `ask_reader`
+
 ## Email
 
 The user's iCloud mail is readable only through the `mail-reader` agent. You can't reach the mail tools or the broker's mail gateway yourself.

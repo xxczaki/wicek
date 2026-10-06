@@ -2,6 +2,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import logger from '../utils/logger.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
 import { createMailMcpServers, MAIL_AGENTS, MAIL_HOOKS } from './mail.ts';
+import { createReaderMcpServers, type ReaderAnswer } from './readers.ts';
 import { agentEnv, REDACTION_HOOKS } from './secrets.ts';
 
 export type { AgentEvent } from './events.ts';
@@ -29,6 +30,9 @@ export async function* streamAgent(
 	logger.debug({ sessionId: options.sessionId }, 'Starting agent query');
 
 	let resume = options.sessionId;
+	const readerAnswers: AgentEvent[] = [];
+	const deliverReaderAnswer = (answer: ReaderAnswer) =>
+		readerAnswers.push({ type: 'reader_answer', ...answer });
 
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const response = query({
@@ -38,7 +42,11 @@ export async function* streamAgent(
 				model: options.model ?? 'opus',
 				mcpServers: options.withoutMcp
 					? undefined
-					: { ...HOME_ASSISTANT_MCP, ...createMailMcpServers() },
+					: {
+							...HOME_ASSISTANT_MCP,
+							...createMailMcpServers(),
+							...createReaderMcpServers(deliverReaderAnswer),
+						},
 				agents: options.withoutMcp ? undefined : MAIL_AGENTS,
 				strictMcpConfig: options.withoutMcp,
 				includePartialMessages: true,
@@ -54,6 +62,7 @@ export async function* streamAgent(
 		try {
 			for await (const message of response) {
 				yield* mapSdkMessage(message);
+				yield* readerAnswers.splice(0);
 			}
 			return;
 		} catch (error) {

@@ -123,6 +123,12 @@ export async function streamToDiscord(
 					break;
 				}
 
+				case 'reader_answer': {
+					await finalizeCurrent();
+					await sendReaderAnswer(channel, event.reader, event.answer);
+					break;
+				}
+
 				case 'result': {
 					sessionId = event.sessionId;
 					resultText = event.text;
@@ -190,6 +196,21 @@ function editText(message: Message, content: string) {
 		content: redactSecrets(content),
 		flags: MessageFlags.SuppressEmbeds,
 	});
+}
+
+// Sent apart from the agent's own posts, so file paths in it never become attachments
+async function sendReaderAnswer(
+	channel: SendableChannels,
+	reader: string,
+	answer: string,
+) {
+	let remaining = `-# 🔒 ${reader} reader · Wicek can't see this message\n${answer}`;
+	while (remaining.length > SAFE_LIMIT) {
+		const splitAt = findSplitPoint(remaining);
+		await sendText(channel, remaining.slice(0, splitAt));
+		remaining = remaining.slice(splitAt).replace(/^\n/, '');
+	}
+	if (remaining) await sendText(channel, remaining);
 }
 
 function findSplitPoint(text: string): number {
