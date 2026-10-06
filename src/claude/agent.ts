@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import logger from '../utils/logger.ts';
+import { BANK_AGENTS, BANK_HOOKS, createBankMcpServers } from './bank.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
 import { createMailMcpServers, MAIL_AGENTS, MAIL_HOOKS } from './mail.ts';
 import { agentEnv, REDACTION_HOOKS } from './secrets.ts';
@@ -38,8 +39,14 @@ export async function* streamAgent(
 				model: options.model ?? 'opus',
 				mcpServers: options.withoutMcp
 					? undefined
-					: { ...HOME_ASSISTANT_MCP, ...createMailMcpServers() },
-				agents: options.withoutMcp ? undefined : MAIL_AGENTS,
+					: {
+							...HOME_ASSISTANT_MCP,
+							...createMailMcpServers(),
+							...createBankMcpServers(),
+						},
+				agents: options.withoutMcp
+					? undefined
+					: { ...MAIL_AGENTS, ...BANK_AGENTS },
 				strictMcpConfig: options.withoutMcp,
 				includePartialMessages: true,
 				permissionMode: 'auto',
@@ -47,7 +54,13 @@ export async function* streamAgent(
 				systemPrompt: { type: 'preset', preset: 'claude_code' },
 				abortController: options.abortController,
 				env: agentEnv(),
-				hooks: { ...REDACTION_HOOKS, ...MAIL_HOOKS },
+				hooks: {
+					...REDACTION_HOOKS,
+					PreToolUse: [
+						...(MAIL_HOOKS.PreToolUse ?? []),
+						...(BANK_HOOKS.PreToolUse ?? []),
+					],
+				},
 			},
 		});
 

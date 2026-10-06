@@ -59,7 +59,7 @@ Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstream
 }
 ```
 
-Mail is quarantined from the main agent. The gateway's tools (`src/claude/mail.ts`) belong to a `mail-reader` subagent that can't use anything else, and hooks stop every other agent and tool from reaching them or the gateway. Email can carry prompt injection, so its text only reaches an agent that can't act on it, and the main agent gets summaries.
+Mail and bank data are quarantined from the main agent. The gateway's tools (`src/claude/mail.ts`) belong to a `mail-reader` subagent that can't use anything else, and hooks stop every other agent and tool from reaching them or the gateway. Email can carry prompt injection, so its text only reaches an agent that can't act on it, and the main agent gets summaries. Bank transactions get the same treatment: a `bank-reader` subagent owns the Enable Banking tools (`src/claude/bank.ts`), since anyone can send a transfer with an arbitrary reference. The bank session lives in `/data/bank/session.json`, outside the agent's memory.
 
 The CA is generated once per pod in a sidecar-only volume. Only the certificate (`/run/broker-ca/ca.pem`) and a system bundle that includes it (`bundle.pem`) are shared with the agent. The sidecar also runs `ssh-agent` on `SSH_AUTH_SOCK` with the keys in `SSH_KEY_FILES` (space-separated), so the agent can use SSH keys without reading them.
 

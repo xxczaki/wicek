@@ -12,6 +12,12 @@ import {
 	tool,
 } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
+import {
+	deny,
+	mentions,
+	SUBAGENT_HANDBACK_TOOL,
+	textResult,
+} from './quarantine.ts';
 
 export const MAIL_AGENT_NAME = 'mail-reader';
 
@@ -22,7 +28,6 @@ const MAIL_GATEWAY_URL = `http://${MAIL_GATEWAY_HOST}`;
 const MAIL_REQUEST_TIMEOUT_MS = 60_000;
 const MAIL_AGENT_MAX_TURNS = 25;
 const READ_ONLY = { annotations: { readOnlyHint: true } };
-const SUBAGENT_HANDBACK_TOOL = 'SubagentHandback';
 const READ_TOOL = 'Read';
 const MAX_FILENAME_LENGTH = 100;
 const MAIL_ATTACHMENT_DIRECTORY = join(
@@ -137,7 +142,7 @@ async function guardMailAccess(input: HookInput): Promise<HookJSONOutput> {
 	if (isMailTool && !isMailAgent) {
 		return deny(`Mail is only readable through the ${MAIL_AGENT_NAME} agent`);
 	}
-	if (!isMailTool && mentionsGateway(input.tool_input)) {
+	if (!isMailTool && mentions(input.tool_input, MAIL_GATEWAY_HOST)) {
 		return deny(
 			`Use the ${MAIL_AGENT_NAME} agent for mail instead of reaching the gateway directly`,
 		);
@@ -162,22 +167,6 @@ function isSavedAttachment(toolInput: unknown): boolean {
 		filePath !== '' &&
 		resolve(filePath).startsWith(`${MAIL_ATTACHMENT_DIRECTORY}/`)
 	);
-}
-
-function mentionsGateway(toolInput: unknown): boolean {
-	return (JSON.stringify(toolInput) ?? '')
-		.toLowerCase()
-		.includes(MAIL_GATEWAY_HOST);
-}
-
-function deny(reason: string): HookJSONOutput {
-	return {
-		hookSpecificOutput: {
-			hookEventName: 'PreToolUse',
-			permissionDecision: 'deny',
-			permissionDecisionReason: reason,
-		},
-	};
 }
 
 type GatewayParams = Record<string, string | number | boolean | undefined>;
@@ -239,10 +228,6 @@ function safeFilename(encoded: string | string[] | undefined): string {
 		.replace(/^[.-]+/, '')
 		.slice(-MAX_FILENAME_LENGTH);
 	return safe || 'attachment';
-}
-
-function textResult(text: string, isError: boolean) {
-	return { content: [{ type: 'text' as const, text }], isError };
 }
 
 function unreachable(error: unknown) {
