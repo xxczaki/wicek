@@ -61,6 +61,17 @@ test('keeps the mail-reader agent away from every other tool', async () => {
 	}
 });
 
+test('lets the mail-reader agent read only its saved attachments', async () => {
+	const read = (filePath: string) =>
+		decide('Read', { file_path: filePath }, MAIL_AGENT);
+
+	assert.equal(await read('/data/outbox/mail/123-invoice.pdf'), undefined);
+	assert.equal(await read('/data/outbox/mail/../../repos/x/.env'), 'deny');
+	assert.equal(await read('/data/outbox/mailbox.pdf'), 'deny');
+	assert.equal(await read('/home/node/.claude/settings.json'), 'deny');
+	assert.equal(await decide('Read', {}, MAIL_AGENT), 'deny');
+});
+
 test('lets the mail-reader agent hand its report back', async () => {
 	assert.equal(
 		await decide('SubagentHandback', { result: 'summary' }, MAIL_AGENT),
@@ -95,10 +106,12 @@ test('blocks other tools from reaching the mail gateway directly', async () => {
 	);
 });
 
-test('gives the mail-reader agent nothing but the read-only mail tools', () => {
+test('gives the mail-reader agent only the mail tools and Read', () => {
 	assert.deepEqual(MAIL_AGENTS[MAIL_AGENT_NAME].tools, [
 		'mcp__mail__list_folders',
 		'mcp__mail__search_messages',
 		'mcp__mail__read_message',
+		'mcp__mail__save_attachment',
+		'Read',
 	]);
 });
