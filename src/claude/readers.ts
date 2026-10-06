@@ -10,7 +10,7 @@ export interface ReaderAnswer {
 	answer: string;
 }
 
-interface Reader {
+export interface Reader {
 	name: string;
 	description: string;
 	url: string;
@@ -48,25 +48,44 @@ export function createReaderMcpServers(
 	};
 }
 
+export function findReader(name: string): Reader | undefined {
+	return READERS.find((reader) => reader.name === name);
+}
+
+export async function postToReader(
+	reader: Reader,
+	path: '/ask' | '/callback',
+	body: unknown,
+): Promise<string | undefined> {
+	const response = await fetch(new URL(path, reader.url), {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(body),
+		signal: AbortSignal.timeout(READER_TIMEOUT_MS),
+	});
+	if (response.status === 404) return undefined;
+	if (!response.ok) throw new Error(`failed with ${response.status}`);
+	const { answer } = (await response.json()) as { answer: string };
+	return answer;
+}
+
+export function labelReaderAnswer({ reader, answer }: ReaderAnswer): string {
+	return `-# 🔒 ${reader} reader · Wicek can't see this message\n${answer}`;
+}
+
 async function askReader(
 	name: string,
 	question: string,
 	deliver: (answer: ReaderAnswer) => void,
 ) {
-	const reader = READERS.find((candidate) => candidate.name === name);
+	const reader = findReader(name);
 	if (!reader) return textResult(`Unknown reader ${name}`, true);
 
 	try {
-		const response = await fetch(new URL('/ask', reader.url), {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ question }),
-			signal: AbortSignal.timeout(READER_TIMEOUT_MS),
-		});
-		if (!response.ok) {
-			return textResult(`Reader ${name} failed with ${response.status}`, true);
+		const answer = await postToReader(reader, '/ask', { question });
+		if (answer === undefined) {
+			return textResult(`Reader ${name} failed with 404`, true);
 		}
-		const { answer } = (await response.json()) as { answer: string };
 		deliver({ reader: name, answer });
 		return textResult(
 			`The ${name} reader's answer was delivered to the user. You can't see it – if you need something from it, ask the user.`,

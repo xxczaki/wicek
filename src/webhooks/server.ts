@@ -6,10 +6,12 @@ import {
 } from 'node:http';
 import type { Client } from 'discord.js';
 import { type StreamAgentOptions, streamAgent } from '../claude/agent.ts';
+import { labelReaderAnswer } from '../claude/readers.ts';
 import { executeJob, sendDirectMessage } from '../cron/scheduler.ts';
 import { getEnvList, getOptionalEnv } from '../utils/env.ts';
 import logger from '../utils/logger.ts';
 import { WebhookBatcher } from './batcher.ts';
+import { handleReaderCallback, readerCallbackName } from './callback.ts';
 import {
 	buildGithubPrompt,
 	type GithubPayload,
@@ -70,6 +72,14 @@ export function startWebhookServer(client: Client): Server {
 	};
 
 	const server = createServer((request, response) => {
+		const readerName = readerCallbackName(request);
+		if (readerName) {
+			handleReaderCallback(readerName, request, response, (answer) =>
+				sendDirectMessage(client, ownerId, labelReaderAnswer(answer)),
+			);
+			return;
+		}
+
 		route(routes, request, response).catch((error) => {
 			logger.error({ error, url: request.url }, 'Webhook request failed');
 			if (!response.headersSent) respond(response, 500);

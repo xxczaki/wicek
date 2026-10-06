@@ -7,6 +7,7 @@ import {
 	type SendableChannels,
 } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
+import { labelReaderAnswer } from '../claude/readers.ts';
 import { redactSecrets } from '../claude/secrets.ts';
 import logger from '../utils/logger.ts';
 
@@ -204,7 +205,7 @@ async function sendReaderAnswer(
 	reader: string,
 	answer: string,
 ) {
-	let remaining = `-# 🔒 ${reader} reader · Wicek can't see this message\n${answer}`;
+	let remaining = labelReaderAnswer({ reader, answer });
 	while (remaining.length > SAFE_LIMIT) {
 		const splitAt = findSplitPoint(remaining);
 		await sendText(channel, remaining.slice(0, splitAt));
