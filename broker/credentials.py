@@ -50,8 +50,9 @@ class Rule:
 
 
 class CredentialBroker:
-    def __init__(self, rules: list[Rule]):
+    def __init__(self, rules: list[Rule], block_unlisted: bool = False):
         self.rules = rules
+        self.block_unlisted = block_unlisted
         self.login_lock = asyncio.Lock()
 
     @classmethod
@@ -67,7 +68,8 @@ class CredentialBroker:
                     insecure_tls=entry.get("insecureTls", False),
                 )
                 for entry in config["hosts"]
-            ]
+            ],
+            block_unlisted=config.get("blockUnlisted", False),
         )
 
     def running(self):
@@ -87,9 +89,15 @@ class CredentialBroker:
             ctx.master.addons.get("tlsconfig").tls_start_server(data)
             data.ssl_conn.set_verify(SSL.VERIFY_NONE, None)
 
+    def http_connect(self, flow: http.HTTPFlow):
+        if self.block_unlisted and not self.rule_for(flow.request.pretty_host):
+            flow.response = not_allowed(flow.request.pretty_host)
+
     async def request(self, flow: http.HTTPFlow):
         rule = self.rule_for(flow.request.pretty_host)
         if not rule:
+            if self.block_unlisted and not flow.response:
+                flow.response = not_allowed(flow.request.pretty_host)
             return
 
         if rule.methods and flow.request.method not in rule.methods:
@@ -193,6 +201,14 @@ class CredentialBroker:
                 "x-csrf-token": rule.unifi_session.csrf_token,
             }
         raise ValueError(f"Unknown auth type {auth['type']}")
+
+
+def not_allowed(host: str) -> http.Response:
+    return http.Response.make(
+        403,
+        json.dumps({"error": f"{host} is not reachable through this broker"}),
+        {"content-type": "application/json"},
+    )
 
 
 def host_pattern(host: str) -> str:

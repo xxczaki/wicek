@@ -337,3 +337,27 @@ test('attaches a mentioned file to the message that mentions it', async () => {
 	assert.equal(attachedFiles.length, 1);
 	assert.equal(attachedFiles[0].length, 1);
 });
+
+test('posts reader answers labeled and apart from the agent text', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'text', content: 'Asking the bank reader.' },
+			{
+				type: 'reader_answer',
+				reader: 'bank',
+				answer: 'Spent €42 at https://example.com',
+			},
+			{ type: 'text', content: '\nDone.' },
+			{ type: 'result', sessionId: 's1', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	assert.equal(sent.send[0], 'Asking the bank reader.');
+	assert.equal(
+		sent.send[1],
+		"-# 🔒 bank reader · Wicek can't see this message\nSpent €42 at https://example.com",
+	);
+	assert.equal(sent.flags[1], MessageFlags.SuppressEmbeds);
+	assert.equal(sent.send[2], '\nDone.');
+});

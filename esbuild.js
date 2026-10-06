@@ -6,7 +6,7 @@ const esbuildPluginPino = require('esbuild-plugin-pino');
 
 /** @type {import('esbuild').BuildOptions} */
 const buildOptions = {
-	entryPoints: ['src/index.ts'],
+	entryPoints: ['src/index.ts', 'src/reader.ts'],
 	bundle: true,
 	platform: 'node',
 	format: 'esm',

@@ -5,6 +5,7 @@ export type AgentEvent =
 	| { type: 'thinking'; content: string }
 	| { type: 'text'; content: string }
 	| { type: 'tool_start'; name: string; input: string }
+	| { type: 'reader_answer'; reader: string; answer: string }
 	| {
 			type: 'result';
 			sessionId: string;

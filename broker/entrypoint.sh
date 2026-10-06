@@ -19,8 +19,9 @@ if [ -n "${SSH_AUTH_SOCK:-}" ]; then
 fi
 
 exec mitmdump \
-	--listen-host 127.0.0.1 \
+	--listen-host "${BROKER_LISTEN_HOST:-127.0.0.1}" \
 	--listen-port "${BROKER_PORT:-3128}" \
 	--set confdir="$CONFDIR" \
 	--set flow_detail=0 \
+	--set block_global=false \
 	--scripts /app/credentials.py
