@@ -2,12 +2,14 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
 	AttachmentBuilder,
+	EmbedBuilder,
 	type Message,
+	type MessageCreateOptions,
 	MessageFlags,
 	type SendableChannels,
 } from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
-import { labelReaderAnswer } from '../claude/readers.ts';
+import type { ReaderAnswer } from '../claude/readers.ts';
 import { redactSecrets } from '../claude/secrets.ts';
 import logger from '../utils/logger.ts';
 
@@ -15,6 +17,8 @@ const SAFE_LIMIT = 1900;
 const MAX_FILES_PER_MESSAGE = 10;
 const FLUSH_INTERVAL_MS = 1500;
 const TOOL_INPUT_LIMIT = 200;
+const READER_EMBED_LIMIT = 4000;
+const READER_EMBED_COLOR = 0xf0b232;
 
 export async function streamToDiscord(
 	events: AsyncIterable<AgentEvent>,
@@ -29,6 +33,7 @@ export async function streamToDiscord(
 	let isThinking = false;
 	let gotResult = false;
 	let gotError = false;
+	let gotReaderAnswer = false;
 	const recentTools: string[] = [];
 	const posts = new Map<Message, string>();
 
@@ -126,7 +131,8 @@ export async function streamToDiscord(
 
 				case 'reader_answer': {
 					await finalizeCurrent();
-					await sendReaderAnswer(channel, event.reader, event.answer);
+					await sendReaderAnswer(channel, event);
+					gotReaderAnswer = true;
 					break;
 				}
 
@@ -169,7 +175,7 @@ export async function streamToDiscord(
 
 		if (buffer) {
 			await flush();
-		} else if (!currentMessage) {
+		} else if (!currentMessage && !gotReaderAnswer) {
 			await sendText(channel, '*(No response)*');
 		}
 
@@ -199,19 +205,38 @@ function editText(message: Message, content: string) {
 	});
 }
 
-// Sent apart from the agent's own posts, so file paths in it never become attachments
-async function sendReaderAnswer(
-	channel: SendableChannels,
-	reader: string,
-	answer: string,
+// An embed keeps the reader's text visibly apart from Wicek's, and is sent
+// apart from the agent's posts so file paths in it never become attachments.
+// Discord builds no link previews from embed text.
+export async function sendReaderAnswer(
+	target: { send: (options: MessageCreateOptions) => Promise<unknown> },
+	{ reader, answer }: Pick<ReaderAnswer, 'reader' | 'answer'>,
 ) {
-	let remaining = labelReaderAnswer({ reader, answer });
-	while (remaining.length > SAFE_LIMIT) {
-		const splitAt = findSplitPoint(remaining);
-		await sendText(channel, remaining.slice(0, splitAt));
+	const chunks = splitText(redactSecrets(answer), READER_EMBED_LIMIT);
+	for (const [index, chunk] of chunks.entries()) {
+		const embed = new EmbedBuilder()
+			.setColor(READER_EMBED_COLOR)
+			.setDescription(chunk);
+		if (index === chunks.length - 1) {
+			embed.setFooter({
+				text: `🔒 ${reader} reader · Wicek can't see this message`,
+			});
+		}
+		await target.send({ embeds: [embed] });
+	}
+}
+
+function splitText(text: string, limit: number): string[] {
+	const chunks: string[] = [];
+	let remaining = text.trim() || '(empty answer)';
+	while (remaining.length > limit) {
+		const newlineAt = remaining.lastIndexOf('\n', limit);
+		const splitAt = newlineAt > limit / 2 ? newlineAt : limit;
+		chunks.push(remaining.slice(0, splitAt));
 		remaining = remaining.slice(splitAt).replace(/^\n/, '');
 	}
-	if (remaining) await sendText(channel, remaining);
+	chunks.push(remaining);
+	return chunks;
 }
 
 function findSplitPoint(text: string): number {
