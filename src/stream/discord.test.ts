@@ -3,7 +3,13 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { type Message, MessageFlags, type SendableChannels } from 'discord.js';
+import {
+	type EmbedBuilder,
+	type Message,
+	type MessageCreateOptions,
+	MessageFlags,
+	type SendableChannels,
+} from 'discord.js';
 import type { AgentEvent } from '../claude/events.ts';
 import { streamToDiscord } from './discord.ts';
 
@@ -338,26 +344,35 @@ test('attaches a mentioned file to the message that mentions it', async () => {
 	assert.equal(attachedFiles[0].length, 1);
 });
 
-test('posts reader answers labeled and apart from the agent text', async () => {
-	const { channel, sent } = createMockChannel();
+test('posts reader answers as an embed with the label in its footer', async () => {
+	const payloads: MessageCreateOptions[] = [];
+	const channel = {
+		send: async (payload: MessageCreateOptions) => {
+			payloads.push(payload);
+			return { edit: async () => {} } as unknown as Message;
+		},
+	} as unknown as SendableChannels;
+
 	await streamToDiscord(
 		events(
-			{ type: 'text', content: 'Asking the bank reader.' },
+			{ type: 'tool_start', name: 'mcp__readers__ask_reader', input: '' },
 			{
 				type: 'reader_answer',
 				reader: 'bank',
 				answer: 'Spent €42 at https://example.com',
 			},
-			{ type: 'text', content: '\nDone.' },
 			{ type: 'result', sessionId: 's1', cost: 0, turns: 1, text: '' },
 		),
 		channel,
 	);
-	assert.equal(sent.send[0], 'Asking the bank reader.');
+
+	const embeds = payloads.flatMap((payload) => payload.embeds ?? []);
+	assert.equal(embeds.length, 1);
+	const { description, footer } = (embeds[0] as EmbedBuilder).data;
+	assert.equal(description, 'Spent €42 at https://example.com');
+	assert.equal(footer?.text, "🔒 bank reader · Wicek can't see this message");
 	assert.equal(
-		sent.send[1],
-		"-# 🔒 bank reader · Wicek can't see this message\nSpent €42 at https://example.com",
+		payloads.some((payload) => payload.content === '*(No response)*'),
+		false,
 	);
-	assert.equal(sent.flags[1], MessageFlags.SuppressEmbeds);
-	assert.equal(sent.send[2], '\nDone.');
 });

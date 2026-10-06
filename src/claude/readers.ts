@@ -69,10 +69,6 @@ export async function postToReader(
 	return answer;
 }
 
-export function labelReaderAnswer({ reader, answer }: ReaderAnswer): string {
-	return `-# 🔒 ${reader} reader · Wicek can't see this message\n${answer}`;
-}
-
 async function askReader(
 	name: string,
 	question: string,
@@ -88,7 +84,7 @@ async function askReader(
 		}
 		deliver({ reader: name, answer });
 		return textResult(
-			`The ${name} reader's answer was delivered to the user. You can't see it – if you need something from it, ask the user.`,
+			`The ${name} reader's answer is already shown to the user, right below your text. You can't see it. Don't describe, summarize, or guess what it says, and don't add a closing message about it – end your turn unless the user asked for something else too.`,
 			false,
 		);
 	} catch (error) {

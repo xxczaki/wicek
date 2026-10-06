@@ -6,8 +6,8 @@ import {
 } from 'node:http';
 import type { Client } from 'discord.js';
 import { type StreamAgentOptions, streamAgent } from '../claude/agent.ts';
-import { labelReaderAnswer } from '../claude/readers.ts';
 import { executeJob, sendDirectMessage } from '../cron/scheduler.ts';
+import { sendReaderAnswer } from '../stream/discord.ts';
 import { getEnvList, getOptionalEnv } from '../utils/env.ts';
 import logger from '../utils/logger.ts';
 import { WebhookBatcher } from './batcher.ts';
@@ -75,7 +75,9 @@ export function startWebhookServer(client: Client): Server {
 		const readerName = readerCallbackName(request);
 		if (readerName) {
 			handleReaderCallback(readerName, request, response, (answer) =>
-				sendDirectMessage(client, ownerId, labelReaderAnswer(answer)),
+				client.users
+					.fetch(ownerId)
+					.then((owner) => sendReaderAnswer(owner, answer)),
 			);
 			return;
 		}
