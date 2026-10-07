@@ -4,6 +4,7 @@ import {
 	type Server,
 	type ServerResponse,
 } from 'node:http';
+import { join } from 'node:path';
 import type { Client, MessageCreateOptions } from 'discord.js';
 import { type StreamAgentOptions, streamAgent } from '../claude/agent.ts';
 import { executeJob, sendDirectMessage } from '../cron/scheduler.ts';
@@ -30,7 +31,8 @@ import {
 const DEFAULT_WEBHOOK_PORT = 8080;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const BATCH_WINDOW_MS = 2 * 60 * 1000;
-const DEDUPE_WINDOW_MS = 12 * 60 * 60 * 1000;
+const FORGET_AFTER_MS = 2 * 24 * 60 * 60 * 1000;
+const REMIND_AFTER_MS = 24 * 60 * 60 * 1000;
 
 const PROMPT_BUILDERS: Record<string, (lines: string[]) => string> = {
 	github: buildGithubPrompt,
@@ -42,8 +44,8 @@ export function startWebhookServer(client: Client): Server {
 	const ownerId = getEnvList('ALLOWED_USER_IDS')[0];
 
 	let runQueue = Promise.resolve();
-	const batcher = new WebhookBatcher(
-		(topic, lines) => {
+	const batcher = new WebhookBatcher({
+		flush: (topic, lines) => {
 			logger.info({ topic, items: lines.length }, 'Queued webhook run');
 			const job = {
 				name: `webhook-${topic}`,
@@ -54,9 +56,11 @@ export function startWebhookServer(client: Client): Server {
 				.then(() => executeJob(job, client, runWithoutMcp))
 				.catch((error) => logger.error({ error, topic }, 'Webhook run failed'));
 		},
-		BATCH_WINDOW_MS,
-		DEDUPE_WINDOW_MS,
-	);
+		windowMs: BATCH_WINDOW_MS,
+		forgetAfterMs: FORGET_AFTER_MS,
+		remindAfterMs: REMIND_AFTER_MS,
+		statePath: join(getOptionalEnv('DATA_DIR') || '/data', 'webhooks.json'),
+	});
 
 	const routes: Record<
 		string,
@@ -152,7 +156,10 @@ function handleGithub(
 
 	const event = header(request, 'x-github-event');
 	const failure = parseGithubFailure(event, payload);
-	if (failure && batcher.add('github', failure.key, failure.line)) {
+	if (
+		failure &&
+		batcher.add('github', failure.key, failure.line) === 'queued'
+	) {
 		logger.info(
 			{ event, delivery: header(request, 'x-github-delivery'), ...failure },
 			'Queued GitHub failure',
@@ -178,16 +185,27 @@ function handleGrafana(
 	if (!payload) return 400;
 
 	const { firing, resolved } = partitionAlerts(payload);
+	const followUpLines: string[] = [];
 	for (const alert of firing) {
-		if (batcher.add('grafana', alertKey(alert), describeAlert(alert))) {
+		const result = batcher.add(
+			'grafana',
+			alertKey(alert),
+			describeAlert(alert),
+		);
+		if (result === 'queued') {
 			logger.info({ fingerprint: alert.fingerprint }, 'Queued Grafana alert');
+		}
+		if (result === 'remind') {
+			followUpLines.push(`⏰ Still firing: ${describeAlert(alert)}`);
 		}
 	}
 
-	const resolvedLines = resolved
-		.filter((alert) => batcher.forget(alertKey(alert)) === 'handled')
-		.map((alert) => `✅ Resolved: ${describeAlert(alert)}`);
-	if (resolvedLines.length > 0) followUp(resolvedLines.join('\n'));
+	for (const alert of resolved) {
+		if (batcher.forget(alertKey(alert)) === 'handled') {
+			followUpLines.push(`✅ Resolved: ${describeAlert(alert)}`);
+		}
+	}
+	if (followUpLines.length > 0) followUp(followUpLines.join('\n'));
 
 	return 202;
 }

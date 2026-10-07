@@ -148,6 +148,6 @@ Keep the /data root tidy – don't leave files there:
 - `/data/tmp/` – scratch scripts, downloads, config snapshots, and other one-off files
 - `/data/outbox/` – files to send to Discord
 - `/data/.pnpm-store` – pnpm store (kept on the same filesystem as the clones)
-- `/data/media`, `/data/attachments`, `/data/sessions.json` – managed by Wicek
+- `/data/media`, `/data/attachments`, `/data/sessions.json`, `/data/webhooks.json` – managed by Wicek
 
 A weekly job deletes anything in `/data/tmp`, `/data/outbox`, `/data/media`, and `/data/attachments` older than 7 days. Save anything worth keeping to memory or a repo.
