@@ -2,9 +2,11 @@ import {
 	type HookCallbackMatcher,
 	type HookEvent,
 	query,
+	type SDKMessage,
 } from '@anthropic-ai/claude-agent-sdk';
 import logger from '../utils/logger.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
+import type { AgentInbox } from './inbox.ts';
 import { createMailMcpServers, MAIL_AGENTS, MAIL_HOOKS } from './mail.ts';
 import {
 	createReaderMcpServers,
@@ -22,6 +24,7 @@ export interface StreamAgentOptions {
 	model?: string;
 	abortController?: AbortController;
 	withoutMcp?: boolean;
+	inbox?: AgentInbox;
 }
 
 const HOME_ASSISTANT_MCP = {
@@ -47,7 +50,9 @@ export async function* streamAgent(
 
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const response = query({
-			prompt: options.prompt,
+			prompt: options.inbox
+				? options.inbox.messages(options.prompt)
+				: options.prompt,
 			options: {
 				resume,
 				model: options.model ?? 'opus',
@@ -68,13 +73,16 @@ export async function* streamAgent(
 				settingSources: ['user', 'project', 'local'],
 				systemPrompt: { type: 'preset', preset: 'claude_code' },
 				abortController: options.abortController,
-				env: agentEnv(),
+				env: { ...agentEnv(), CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' },
 				hooks: AGENT_HOOKS,
 			},
 		});
 
 		try {
 			for await (const message of response) {
+				if (options.inbox?.takeDeliveredCount()) yield { type: 'user_message' };
+				if (isIdle(message) && !options.inbox?.hasPending)
+					options.inbox?.close();
 				yield* mapSdkMessage(message);
 				yield* readerAnswers.splice(0);
 			}
@@ -114,4 +122,12 @@ function mergeHooks(
 		}
 	}
 	return merged;
+}
+
+function isIdle(message: SDKMessage): boolean {
+	return (
+		message.type === 'system' &&
+		message.subtype === 'session_state_changed' &&
+		message.state === 'idle'
+	);
 }

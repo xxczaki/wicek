@@ -13,6 +13,12 @@ import type { ReaderAnswer } from '../claude/readers.ts';
 import { redactSecrets } from '../claude/secrets.ts';
 import logger from '../utils/logger.ts';
 
+interface ToolLine {
+	label: string;
+	count: number;
+	line: string;
+}
+
 const SAFE_LIMIT = 1900;
 const MAX_FILES_PER_MESSAGE = 10;
 const FLUSH_INTERVAL_MS = 1500;
@@ -36,6 +42,7 @@ export async function streamToDiscord(
 	let gotError = false;
 	let gotReaderAnswer = false;
 	const recentTools: string[] = [];
+	let lastTool = null as ToolLine | null;
 	const posts = new Map<Message, string>();
 
 	async function post(content: string) {
@@ -80,6 +87,7 @@ export async function streamToDiscord(
 		if (buffer) await flush();
 		currentMessage = null;
 		buffer = '';
+		lastTool = null;
 	}
 
 	try {
@@ -89,6 +97,7 @@ export async function streamToDiscord(
 					break;
 
 				case 'text': {
+					lastTool = null;
 					if (isThinking) {
 						buffer = ensureLineStart(buffer);
 						buffer += '\n';
@@ -114,19 +123,28 @@ export async function streamToDiscord(
 							? `\`${event.name}\` ${truncate(event.input, TOOL_INPUT_LIMIT)}`
 							: `\`${event.name}\``,
 					);
-					const toolLine = `-# ${compactToolLabel(event.name, event.input)}\n`;
 
-					if (!buffer && !currentMessage) {
-						currentMessage = await post(toolLine);
-						lastFlush = Date.now();
+					const label = compactToolLabel(event.name, event.input);
+					if (lastTool?.label === label && buffer.endsWith(lastTool.line)) {
+						buffer = buffer.slice(0, -lastTool.line.length);
+						lastTool.count++;
 					} else {
-						buffer += toolLine;
-						if (
-							buffer.length > SAFE_LIMIT ||
-							Date.now() - lastFlush >= FLUSH_INTERVAL_MS
-						)
-							await flush();
+						lastTool = { label, count: 1, line: '' };
 					}
+					lastTool.line = formatToolLine(lastTool.label, lastTool.count);
+					buffer += lastTool.line;
+
+					if (
+						!currentMessage ||
+						buffer.length > SAFE_LIMIT ||
+						Date.now() - lastFlush >= FLUSH_INTERVAL_MS
+					)
+						await flush();
+					break;
+				}
+
+				case 'user_message': {
+					await finalizeCurrent();
 					break;
 				}
 
@@ -271,6 +289,10 @@ function compactToolLabel(name: string, input: string): string {
 	if (name.startsWith('mcp__'))
 		return `Used ${name.slice(5).split('__').join(' · ')}`;
 	return TOOL_VERBS[name] ?? `Used ${name}`;
+}
+
+function formatToolLine(label: string, count: number): string {
+	return count > 1 ? `-# ${label} ×${count}\n` : `-# ${label}\n`;
 }
 
 const FILE_PATH_REGEX =
