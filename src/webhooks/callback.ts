@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
 	findReader,
+	lastConversationFor,
 	postToReader,
 	type ReaderAnswer,
 } from '../claude/readers.ts';
@@ -41,13 +42,14 @@ export function handleReaderCallback(
 	const params = Object.fromEntries(url.searchParams);
 	if (JSON.stringify(params).length > MAX_CALLBACK_PARAMS_BYTES) return;
 
-	postToReader(reader, '/callback', { params })
+	const conversation = lastConversationFor(readerName);
+	postToReader(reader, '/callback', { params, conversation })
 		.then((answer) => {
 			if (answer === undefined) {
 				logger.warn({ reader: readerName }, 'Callback without a pending state');
 				return;
 			}
-			return deliver({ reader: readerName, answer });
+			return deliver({ reader: readerName, answer, conversation });
 		})
 		.catch((error) =>
 			logger.error(
