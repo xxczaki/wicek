@@ -6,6 +6,7 @@ export type AgentEvent =
 	| { type: 'text'; content: string }
 	| { type: 'tool_start'; name: string; input: string }
 	| { type: 'reader_answer'; reader: string; answer: string }
+	| { type: 'user_message' }
 	| {
 			type: 'result';
 			sessionId: string;

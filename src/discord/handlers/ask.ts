@@ -4,7 +4,8 @@ import {
 	type Message,
 	type SendableChannels,
 } from 'discord.js';
-import { streamAgent } from '../../claude/agent.ts';
+import { type AgentEvent, streamAgent } from '../../claude/agent.ts';
+import { AgentInbox } from '../../claude/inbox.ts';
 import { contextKey, getSession, setSession } from '../../claude/sessions.ts';
 import { streamToDiscord } from '../../stream/discord.ts';
 import logger from '../../utils/logger.ts';
@@ -13,8 +14,12 @@ import {
 	downloadAttachments,
 } from '../attachments.ts';
 
-let isBusy = false;
+const TYPING_INTERVAL_MS = 8_000;
+
+const inboxes = new Map<string, AgentInbox>();
 let activeController: AbortController | null = null;
+let runQueue: Promise<void> = Promise.resolve();
+let queuedRunCount = 0;
 
 export function stopAgent(): boolean {
 	if (!activeController) return false;
@@ -39,52 +44,85 @@ async function runAgent(
 	channel: SendableChannels,
 	ctx: ReturnType<typeof getContextFromMessage>,
 ) {
-	if (isBusy) {
-		await channel.send("I'm currently handling another request. Please wait.");
+	const key = contextKey(ctx);
+	if (inboxes.get(key)?.push(prompt)) {
+		logger.info({ key }, 'Steered running agent');
 		return;
 	}
 
-	isBusy = true;
+	const inbox = new AgentInbox();
+	inboxes.set(key, inbox);
 
-	const TYPING_INTERVAL_MS = 8_000;
+	const previousRun = runQueue;
+	let releaseQueue = () => {};
+	runQueue = new Promise((resolve) => {
+		releaseQueue = resolve;
+	});
+
+	if (queuedRunCount++ > 0) {
+		await channel
+			.send("Queued – I'll start once the current task is done.")
+			.catch(() => {});
+	}
+
+	await previousRun;
+
 	const typingInterval = channel.isTextBased()
 		? setInterval(() => {
 				channel.sendTyping().catch(() => {});
 			}, TYPING_INTERVAL_MS)
 		: undefined;
+	const controller = new AbortController();
+	activeController = controller;
 
 	try {
 		if (channel.isTextBased()) await channel.sendTyping();
 
-		const key = contextKey(ctx);
-		const existingSession = getSession(key);
-		activeController = new AbortController();
-
 		const events = streamAgent({
 			prompt,
-			sessionId: existingSession,
+			sessionId: getSession(key),
 			conversation: key,
-			abortController: activeController,
+			abortController: controller,
+			inbox,
 		});
 
 		const { sessionId } = await streamToDiscord(
-			events,
+			closeInboxWhenDone(events, inbox),
 			channel,
-			activeController.signal,
+			controller.signal,
 		);
 
 		if (sessionId) {
 			setSession(key, sessionId);
 		}
 	} catch (error) {
-		if (!activeController?.signal.aborted) {
+		if (!controller.signal.aborted) {
 			logger.error({ error }, 'Agent run failed');
 			await channel.send('Something went wrong.').catch(() => {});
 		}
 	} finally {
 		if (typingInterval) clearInterval(typingInterval);
+		inbox.close();
+		if (inboxes.get(key) === inbox) inboxes.delete(key);
 		activeController = null;
-		isBusy = false;
+		queuedRunCount--;
+		releaseQueue();
+	}
+
+	const undelivered = inbox.takePending();
+	if (undelivered.length > 0 && !controller.signal.aborted) {
+		await runAgent(undelivered.join('\n\n'), channel, ctx);
+	}
+}
+
+async function* closeInboxWhenDone(
+	events: AsyncIterable<AgentEvent>,
+	inbox: AgentInbox,
+): AsyncGenerator<AgentEvent> {
+	try {
+		yield* events;
+	} finally {
+		inbox.close();
 	}
 }
 

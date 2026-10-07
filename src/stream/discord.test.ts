@@ -378,3 +378,69 @@ test('posts reader answers as a private embed and ends the turn cleanly', async 
 		false,
 	);
 });
+
+test('repeated tool lines collapse into a count', async () => {
+	const { channel, sent } = createMockChannel();
+	const tool = (name: string): AgentEvent => ({
+		type: 'tool_start',
+		name,
+		input: '',
+	});
+	await streamToDiscord(
+		events(
+			tool('mcp__mail__search_messages'),
+			tool('mcp__mail__search_messages'),
+			tool('mcp__mail__search_messages'),
+			tool('mcp__mail__read_message'),
+			tool('mcp__mail__read_message'),
+			tool('mcp__mail__search_messages'),
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	assert.equal(sent.send.length, 1);
+	assert.equal(
+		sent.edits.at(-1),
+		[
+			'-# Used mail · search_messages ×3',
+			'-# Used mail · read_message ×2',
+			'-# Used mail · search_messages',
+			'',
+		].join('\n'),
+	);
+});
+
+test('a tool line counts up in the new message after a split', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'tool_start', name: 'Read', input: '' },
+			{ type: 'text', content: `${'x'.repeat(1000)}\n${'y'.repeat(880)}` },
+			{ type: 'tool_start', name: 'Read', input: '' },
+			{ type: 'tool_start', name: 'Read', input: '' },
+			{ type: 'tool_start', name: 'Read', input: '' },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 1, text: '' },
+		),
+		channel,
+	);
+	for (const message of [...sent.send, ...sent.edits]) {
+		assert.ok(message.length <= 2000, `message length ${message.length}`);
+	}
+	assert.equal(sent.send.length, 2);
+	assert.equal(sent.send.at(-1), '-# Read a file\n');
+	assert.equal(sent.edits.at(-1), '-# Read a file ×3\n');
+});
+
+test('a steering message starts a new Discord message', async () => {
+	const { channel, sent } = createMockChannel();
+	await streamToDiscord(
+		events(
+			{ type: 'text', content: 'Checking mail' },
+			{ type: 'user_message' },
+			{ type: 'text', content: 'Switching to banking' },
+			{ type: 'result', sessionId: 's', cost: 0, turns: 2, text: '' },
+		),
+		channel,
+	);
+	assert.deepEqual(sent.send, ['Checking mail', 'Switching to banking']);
+});
