@@ -1,8 +1,16 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import {
+	type HookCallbackMatcher,
+	type HookEvent,
+	query,
+} from '@anthropic-ai/claude-agent-sdk';
 import logger from '../utils/logger.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
 import { createMailMcpServers, MAIL_AGENTS, MAIL_HOOKS } from './mail.ts';
-import { createReaderMcpServers, type ReaderAnswer } from './readers.ts';
+import {
+	createReaderMcpServers,
+	READER_HOOKS,
+	type ReaderAnswer,
+} from './readers.ts';
 import { agentEnv, REDACTION_HOOKS } from './secrets.ts';
 
 export type { AgentEvent } from './events.ts';
@@ -10,6 +18,7 @@ export type { AgentEvent } from './events.ts';
 export interface StreamAgentOptions {
 	prompt: string;
 	sessionId?: string;
+	conversation?: string;
 	model?: string;
 	abortController?: AbortController;
 	withoutMcp?: boolean;
@@ -23,6 +32,8 @@ const HOME_ASSISTANT_MCP = {
 			'http://homeassistant.wicek.svc.cluster.local:8123/mcp_server/sse',
 	},
 };
+
+const AGENT_HOOKS = mergeHooks(REDACTION_HOOKS, MAIL_HOOKS, READER_HOOKS);
 
 export async function* streamAgent(
 	options: StreamAgentOptions,
@@ -45,7 +56,10 @@ export async function* streamAgent(
 					: {
 							...HOME_ASSISTANT_MCP,
 							...createMailMcpServers(),
-							...createReaderMcpServers(deliverReaderAnswer),
+							...createReaderMcpServers(
+								deliverReaderAnswer,
+								options.conversation,
+							),
 						},
 				agents: options.withoutMcp ? undefined : MAIL_AGENTS,
 				strictMcpConfig: options.withoutMcp,
@@ -55,7 +69,7 @@ export async function* streamAgent(
 				systemPrompt: { type: 'preset', preset: 'claude_code' },
 				abortController: options.abortController,
 				env: agentEnv(),
-				hooks: { ...REDACTION_HOOKS, ...MAIL_HOOKS },
+				hooks: AGENT_HOOKS,
 			},
 		});
 
@@ -85,4 +99,19 @@ export async function* streamAgent(
 			return;
 		}
 	}
+}
+
+function mergeHooks(
+	...hookSets: Partial<Record<HookEvent, HookCallbackMatcher[]>>[]
+): Partial<Record<HookEvent, HookCallbackMatcher[]>> {
+	const merged: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {};
+	for (const hookSet of hookSets) {
+		for (const [event, matchers] of Object.entries(hookSet) as [
+			HookEvent,
+			HookCallbackMatcher[],
+		][]) {
+			merged[event] = [...(merged[event] ?? []), ...matchers];
+		}
+	}
+	return merged;
 }
