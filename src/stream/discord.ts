@@ -19,6 +19,7 @@ const FLUSH_INTERVAL_MS = 1500;
 const TOOL_INPUT_LIMIT = 200;
 const READER_EMBED_LIMIT = 4000;
 const READER_EMBED_COLOR = 0xf0b232;
+const PRIVATE_FOOTER = "🔒 Private – Wicek can't see this";
 
 export async function streamToDiscord(
 	events: AsyncIterable<AgentEvent>,
@@ -205,12 +206,12 @@ function editText(message: Message, content: string) {
 	});
 }
 
-// An embed keeps the reader's text visibly apart from Wicek's, and is sent
-// apart from the agent's posts so file paths in it never become attachments.
+// An embed keeps private text visibly apart from Wicek's, and is sent apart
+// from the agent's posts so file paths in it never become attachments.
 // Discord builds no link previews from embed text.
 export async function sendReaderAnswer(
 	target: { send: (options: MessageCreateOptions) => Promise<unknown> },
-	{ reader, answer }: Pick<ReaderAnswer, 'reader' | 'answer'>,
+	{ answer }: Pick<ReaderAnswer, 'answer'>,
 ) {
 	const chunks = splitText(redactSecrets(answer), READER_EMBED_LIMIT);
 	for (const [index, chunk] of chunks.entries()) {
@@ -218,9 +219,7 @@ export async function sendReaderAnswer(
 			.setColor(READER_EMBED_COLOR)
 			.setDescription(chunk);
 		if (index === chunks.length - 1) {
-			embed.setFooter({
-				text: `🔒 ${reader} reader · Wicek can't see this message`,
-			});
+			embed.setFooter({ text: PRIVATE_FOOTER });
 		}
 		await target.send({ embeds: [embed] });
 	}

@@ -4,7 +4,7 @@ import {
 	type Server,
 	type ServerResponse,
 } from 'node:http';
-import type { Client } from 'discord.js';
+import type { Client, MessageCreateOptions } from 'discord.js';
 import { type StreamAgentOptions, streamAgent } from '../claude/agent.ts';
 import { executeJob, sendDirectMessage } from '../cron/scheduler.ts';
 import { sendReaderAnswer } from '../stream/discord.ts';
@@ -74,10 +74,11 @@ export function startWebhookServer(client: Client): Server {
 	const server = createServer((request, response) => {
 		const readerName = readerCallbackName(request);
 		if (readerName) {
-			handleReaderCallback(readerName, request, response, (answer) =>
-				client.users
-					.fetch(ownerId)
-					.then((owner) => sendReaderAnswer(owner, answer)),
+			handleReaderCallback(readerName, request, response, async (answer) =>
+				sendReaderAnswer(
+					await conversationTarget(client, answer.conversation, ownerId),
+					answer,
+				),
 			);
 			return;
 		}
@@ -90,6 +91,19 @@ export function startWebhookServer(client: Client): Server {
 
 	server.listen(port, () => logger.info({ port }, 'Webhook server listening'));
 	return server;
+}
+
+async function conversationTarget(
+	client: Client,
+	conversation: string | undefined,
+	ownerId: string,
+): Promise<{ send: (options: MessageCreateOptions) => Promise<unknown> }> {
+	const [kind, id] = conversation?.split(':') ?? [];
+	if ((kind === 'thread' || kind === 'channel') && id) {
+		const channel = await client.channels.fetch(id).catch(() => null);
+		if (channel?.isSendable()) return channel;
+	}
+	return client.users.fetch(kind === 'dm' && id ? id : ownerId);
 }
 
 function runWithoutMcp(options: StreamAgentOptions) {

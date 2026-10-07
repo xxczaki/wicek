@@ -57,7 +57,9 @@ test('delivers the reader answer only for the pending state', async () => {
 	assert.deepEqual(delivered, []);
 
 	await visit(`/hooks/callback/bank?code=abc&state=${PENDING_STATE}`);
-	assert.deepEqual(delivered, [{ reader: 'bank', answer: 'Connected' }]);
+	assert.deepEqual(delivered, [
+		{ reader: 'bank', answer: 'Connected', conversation: undefined },
+	]);
 });
 
 test('never reflects the query and rejects unknown readers', async () => {

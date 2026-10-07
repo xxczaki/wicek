@@ -63,6 +63,7 @@ async function runAgent(
 		const events = streamAgent({
 			prompt,
 			sessionId: existingSession,
+			conversation: key,
 			abortController: activeController,
 		});
 

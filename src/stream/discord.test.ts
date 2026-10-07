@@ -344,7 +344,7 @@ test('attaches a mentioned file to the message that mentions it', async () => {
 	assert.equal(attachedFiles[0].length, 1);
 });
 
-test('posts reader answers as an embed with the label in its footer', async () => {
+test('posts reader answers as a private embed and ends the turn cleanly', async () => {
 	const payloads: MessageCreateOptions[] = [];
 	const channel = {
 		send: async (payload: MessageCreateOptions) => {
@@ -353,7 +353,7 @@ test('posts reader answers as an embed with the label in its footer', async () =
 		},
 	} as unknown as SendableChannels;
 
-	await streamToDiscord(
+	const result = await streamToDiscord(
 		events(
 			{ type: 'tool_start', name: 'mcp__readers__ask_reader', input: '' },
 			{
@@ -370,7 +370,9 @@ test('posts reader answers as an embed with the label in its footer', async () =
 	assert.equal(embeds.length, 1);
 	const { description, footer } = (embeds[0] as EmbedBuilder).data;
 	assert.equal(description, 'Spent €42 at https://example.com');
-	assert.equal(footer?.text, "🔒 bank reader · Wicek can't see this message");
+	assert.equal(footer?.text, "🔒 Private – Wicek can't see this");
+	assert.equal(JSON.stringify(payloads).includes('bank'), false);
+	assert.equal(result.sessionId, 's1');
 	assert.equal(
 		payloads.some((payload) => payload.content === '*(No response)*'),
 		false,
