@@ -93,10 +93,9 @@ export function buildGithubPrompt(lines: string[]): string {
 		'Use the repo-maintenance subagent to handle these CI failures reported by GitHub webhooks:',
 		...lines.map((line) => `- ${line}`),
 		'',
-		'Work in `/data/webhooks/<repo>` (clone there if missing, otherwise `git fetch` and start from a clean branch) – never in `/data/<repo>`, which interactive sessions use.',
-		'Scope the work to exactly these repos and runs/PRs – this is not a full sweep. For each one, read the failed logs (`gh run view --log-failed`), diagnose, and fix only safe, well-understood cases via a PR (or a follow-up commit on the Renovate PR branch). Never merge, never force-push, never push to main.',
+		'Scope the work to exactly these repos and runs/PRs – this is not a full sweep.',
 		'If a failure is clearly transient (runner or network flake), re-run the failed jobs once instead of changing code. If a fix you pushed earlier on the same branch already failed, report it for review instead of trying again.',
-		'End with one Discord-formatted line per item: ✅ already green, 🔧 fixed (PR link), 🔁 re-run, or ⚠️ needs review (what is wrong).',
+		'End with one line per item: ✅ already green, 🔧 fixed (PR link), 🔁 re-run, or ⚠️ needs review (what is wrong).',
 	].join('\n');
 }
 

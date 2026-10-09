@@ -4,9 +4,9 @@ import {
 	type Message,
 	type SendableChannels,
 } from 'discord.js';
-import { type AgentEvent, streamAgent } from '../../claude/agent.ts';
+import { streamAgent } from '../../claude/agent.ts';
 import { AgentInbox } from '../../claude/inbox.ts';
-import { contextKey, getSession, setSession } from '../../claude/sessions.ts';
+import { getSession, setSession } from '../../claude/sessions.ts';
 import { streamToDiscord } from '../../stream/discord.ts';
 import logger from '../../utils/logger.ts';
 import {
@@ -27,24 +27,21 @@ export function stopAgent(): boolean {
 	return true;
 }
 
-function getContextFromMessage(message: Message) {
-	return {
-		isDM: message.channel.type === ChannelType.DM,
-		userId: message.author.id,
-		threadId:
-			message.channel.type === ChannelType.PublicThread
-				? message.channel.id
-				: undefined,
-		channelId: message.channel.id,
-	};
+export function contextKey(
+	channel: { type: ChannelType; id: string },
+	userId: string,
+): string {
+	if (channel.type === ChannelType.DM) return `dm:${userId}`;
+	if (channel.type === ChannelType.PublicThread) return `thread:${channel.id}`;
+	return `channel:${channel.id}`;
 }
 
 async function runAgent(
 	prompt: string,
 	channel: SendableChannels,
-	ctx: ReturnType<typeof getContextFromMessage>,
+	userId: string,
 ) {
-	const key = contextKey(ctx);
+	const key = contextKey(channel, userId);
 	if (inboxes.get(key)?.push(prompt)) {
 		logger.info({ key }, 'Steered running agent');
 		return;
@@ -87,7 +84,7 @@ async function runAgent(
 		});
 
 		const { sessionId } = await streamToDiscord(
-			closeInboxWhenDone(events, inbox),
+			events,
 			channel,
 			controller.signal,
 		);
@@ -111,18 +108,7 @@ async function runAgent(
 
 	const undelivered = inbox.takePending();
 	if (undelivered.length > 0 && !controller.signal.aborted) {
-		await runAgent(undelivered.join('\n\n'), channel, ctx);
-	}
-}
-
-async function* closeInboxWhenDone(
-	events: AsyncIterable<AgentEvent>,
-	inbox: AgentInbox,
-): AsyncGenerator<AgentEvent> {
-	try {
-		yield* events;
-	} finally {
-		inbox.close();
+		await runAgent(undelivered.join('\n\n'), channel, userId);
 	}
 }
 
@@ -145,27 +131,12 @@ export async function handleAskInteraction(
 		});
 
 		await interaction.editReply(`Continuing in ${thread}`);
-
-		const ctx = {
-			isDM: false,
-			userId: interaction.user.id,
-			threadId: thread.id,
-			channelId: channel.id,
-		};
-		await runAgent(prompt, thread, ctx);
+		await runAgent(prompt, thread, interaction.user.id);
 		return;
 	}
 
-	const ctx = {
-		isDM: channel.type === ChannelType.DM,
-		userId: interaction.user.id,
-		threadId:
-			channel.type === ChannelType.PublicThread ? channel.id : undefined,
-		channelId: channel.id,
-	};
-
 	await interaction.deleteReply();
-	await runAgent(prompt, channel as SendableChannels, ctx);
+	await runAgent(prompt, channel as SendableChannels, interaction.user.id);
 }
 
 export async function handleAskMessage(message: Message, prompt: string) {
@@ -177,22 +148,19 @@ export async function handleAskMessage(message: Message, prompt: string) {
 		fullPrompt = buildPromptWithAttachments(prompt, paths);
 	}
 
-	const ctx = getContextFromMessage(message);
-
-	if (
-		!ctx.isDM &&
-		!ctx.threadId &&
-		message.channel.type === ChannelType.GuildText
-	) {
+	if (message.channel.type === ChannelType.GuildText) {
 		const thread = await message.channel.threads.create({
 			name: prompt.slice(0, 100),
 			autoArchiveDuration: 60,
 			startMessage: message,
 		});
-		ctx.threadId = thread.id;
-		await runAgent(fullPrompt, thread, ctx);
+		await runAgent(fullPrompt, thread, message.author.id);
 		return;
 	}
 
-	await runAgent(fullPrompt, message.channel as SendableChannels, ctx);
+	await runAgent(
+		fullPrompt,
+		message.channel as SendableChannels,
+		message.author.id,
+	);
 }

@@ -48,17 +48,6 @@ function save() {
 	}
 }
 
-export function contextKey(options: {
-	isDM: boolean;
-	userId: string;
-	threadId?: string;
-	channelId: string;
-}): string {
-	if (options.isDM) return `dm:${options.userId}`;
-	if (options.threadId) return `thread:${options.threadId}`;
-	return `channel:${options.channelId}`;
-}
-
 export function getSession(key: string): string | undefined {
 	load();
 	return sessions.get(key)?.sessionId;

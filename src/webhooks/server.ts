@@ -5,11 +5,16 @@ import {
 	type ServerResponse,
 } from 'node:http';
 import { join } from 'node:path';
-import type { Client, MessageCreateOptions } from 'discord.js';
+import type { Client } from 'discord.js';
 import { type StreamAgentOptions, streamAgent } from '../claude/agent.ts';
-import { executeJob, sendDirectMessage } from '../cron/scheduler.ts';
-import { sendReaderAnswer } from '../stream/discord.ts';
-import { getEnvList, getOptionalEnv } from '../utils/env.ts';
+import { executeJob } from '../cron/scheduler.ts';
+import { getOwnerId } from '../discord/guards.ts';
+import {
+	type MessageTarget,
+	sendDirectMessage,
+	sendReaderAnswer,
+} from '../stream/discord.ts';
+import { getOptionalEnv } from '../utils/env.ts';
 import logger from '../utils/logger.ts';
 import { WebhookBatcher } from './batcher.ts';
 import { handleReaderCallback, readerCallbackName } from './callback.ts';
@@ -41,7 +46,7 @@ const PROMPT_BUILDERS: Record<string, (lines: string[]) => string> = {
 
 export function startWebhookServer(client: Client): Server {
 	const port = Number(getOptionalEnv('WEBHOOK_PORT') ?? DEFAULT_WEBHOOK_PORT);
-	const ownerId = getEnvList('ALLOWED_USER_IDS')[0];
+	const ownerId = getOwnerId();
 
 	let runQueue = Promise.resolve();
 	const batcher = new WebhookBatcher({
@@ -101,7 +106,7 @@ async function conversationTarget(
 	client: Client,
 	conversation: string | undefined,
 	ownerId: string,
-): Promise<{ send: (options: MessageCreateOptions) => Promise<unknown> }> {
+): Promise<MessageTarget> {
 	const [kind, id] = conversation?.split(':') ?? [];
 	if ((kind === 'thread' || kind === 'channel') && id) {
 		const channel = await client.channels.fetch(id).catch(() => null);

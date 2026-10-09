@@ -12,6 +12,10 @@ export function isAllowedUser(userId: string): boolean {
 	return getAllowedUserIds().includes(userId);
 }
 
+export function getOwnerId(): string {
+	return getAllowedUserIds()[0];
+}
+
 export function isDM(message: Message): boolean {
 	return message.channel.type === ChannelType.DM;
 }
