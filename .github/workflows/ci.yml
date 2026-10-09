@@ -111,6 +111,26 @@ jobs:
           annotations: ${{ steps.brokerMeta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Extract chromium metadata
+        id: chromiumMeta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/xxczaki/wicek-chromium
+          flavor: |
+            latest=true
+          tags: |
+            type=sha,prefix=,format=long
+      - name: Build and push chromium
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: chromium
+          push: true
+          platforms: linux/arm64
+          tags: ${{ steps.chromiumMeta.outputs.tags }}
+          annotations: ${{ steps.chromiumMeta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Checkout charts repo
         uses: actions/checkout@v7
         with:

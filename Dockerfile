@@ -34,6 +34,22 @@ ENV PYTHONUNBUFFERED=1
 USER 1000
 ENTRYPOINT ["/app/entrypoint.sh"]
 
+FROM debian:bookworm-slim AS chromium
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      chromium \
+      fonts-liberation \
+      xvfb && \
+    rm -rf /var/lib/apt/lists/* && \
+    useradd --uid 1000 --create-home --shell /usr/sbin/nologin chromium && \
+    mkdir -p /tmp/.X11-unix && \
+    chmod 1777 /tmp/.X11-unix
+COPY --chmod=755 chromium/run.sh /usr/local/bin/chromium-run
+USER 1000
+ENV HOME=/home/chromium
+ENTRYPOINT ["/usr/local/bin/chromium-run"]
+
 FROM base
 RUN apk add --no-cache bash openssh-client git curl jq sqlite
 
