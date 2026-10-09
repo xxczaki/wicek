@@ -7,6 +7,11 @@ import {
 import logger from '../utils/logger.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
 import type { AgentInbox } from './inbox.ts';
+import {
+	ACCOUNT_AGENTS,
+	ACCOUNT_HOOKS,
+	createLoginsMcpServers,
+} from './logins.ts';
 import { createMailMcpServers, MAIL_AGENTS, MAIL_HOOKS } from './mail.ts';
 import {
 	createReaderMcpServers,
@@ -36,7 +41,12 @@ const HOME_ASSISTANT_MCP = {
 	},
 };
 
-const AGENT_HOOKS = mergeHooks(REDACTION_HOOKS, MAIL_HOOKS, READER_HOOKS);
+const AGENT_HOOKS = mergeHooks(
+	REDACTION_HOOKS,
+	MAIL_HOOKS,
+	READER_HOOKS,
+	ACCOUNT_HOOKS,
+);
 
 export async function* streamAgent(
 	options: StreamAgentOptions,
@@ -61,12 +71,15 @@ export async function* streamAgent(
 					: {
 							...HOME_ASSISTANT_MCP,
 							...createMailMcpServers(),
+							...createLoginsMcpServers(),
 							...createReaderMcpServers(
 								deliverReaderAnswer,
 								options.conversation,
 							),
 						},
-				agents: options.withoutMcp ? undefined : MAIL_AGENTS,
+				agents: options.withoutMcp
+					? undefined
+					: { ...MAIL_AGENTS, ...ACCOUNT_AGENTS },
 				strictMcpConfig: options.withoutMcp,
 				includePartialMessages: true,
 				permissionMode: 'auto',
