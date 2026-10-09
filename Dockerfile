@@ -19,11 +19,17 @@ FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
 FROM mitmproxy/mitmproxy:12.2.3 AS broker
+ARG TARGETARCH
+ARG OP_VERSION=2.40.0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/*
+ADD https://cache.agilebits.com/dist/1P/op2/pkg/v${OP_VERSION}/op_linux_${TARGETARCH}_v${OP_VERSION}.zip /tmp/op.zip
+RUN python3 -m zipfile -e /tmp/op.zip /tmp/op && \
+    install -m 755 /tmp/op/op /usr/local/bin/op && \
+    rm -rf /tmp/op /tmp/op.zip
 WORKDIR /app
-COPY broker/credentials.py broker/mail.py broker/entrypoint.sh ./
+COPY broker/credentials.py broker/mail.py broker/logins.py broker/browser.py broker/spki.py broker/entrypoint.sh ./
 ENV PYTHONUNBUFFERED=1
 USER 1000
 ENTRYPOINT ["/app/entrypoint.sh"]

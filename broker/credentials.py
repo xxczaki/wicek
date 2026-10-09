@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from mitmproxy import ctx, http, tls
 from OpenSSL import SSL
 
+import logins
 import mail
 
 CONFIG_PATH = os.environ.get("BROKER_CONFIG", "/etc/broker/config.json")
@@ -117,6 +118,12 @@ class CredentialBroker:
                 rule.auth["server"],
                 read_secret(rule.auth["usernameFile"]),
                 read_secret(rule.auth["passwordFile"]),
+            )
+            return
+
+        if rule.auth["type"] == "logins":
+            flow.response = await asyncio.to_thread(
+                logins.respond, flow.request, rule.auth
             )
             return
 

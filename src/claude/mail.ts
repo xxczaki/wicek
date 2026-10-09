@@ -253,7 +253,7 @@ function unreachable(error: unknown) {
 // fetch tunnels plain-HTTP requests through CONNECT, which makes the broker
 // dial the made-up gateway host. node:http sends a regular proxy request
 // that the broker answers itself.
-function getThroughProxy(
+export function getThroughProxy(
 	url: URL,
 ): Promise<{ status: number; headers: IncomingHttpHeaders; body: Buffer }> {
 	return new Promise((resolve, reject) => {
