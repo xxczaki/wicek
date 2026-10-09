@@ -62,7 +62,7 @@ export function buildGrafanaPrompt(lines: string[]): string {
 		'2. Cluster health over SSH to the Raspberry Pi – node status, pods not Running/Ready, recent warning events, ArgoCD app sync/health.',
 		'3. Alloy (k8s-monitoring) logs for remote-write or scrape errors – a telemetry gap can look like an outage.',
 		'4. UniFi WAN stats (https://10.10.10.1) for internet drops – the home connection drops nightly around 03:00–04:00 and 06:00 CEST.',
-		'Do not change cluster, network, or Grafana config. Report the likely cause, key evidence, and whether action is needed (and what), Discord-formatted, under 1500 characters.',
+		'Do not change cluster, network, or Grafana config. Run any read-only check you would suggest yourself. Report only the conclusions – likely cause, key evidence, and whether action is needed (and what) – Discord-formatted, under 1500 characters.',
 	].join('\n');
 }
 
