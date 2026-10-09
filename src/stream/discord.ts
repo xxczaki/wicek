@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
 	AttachmentBuilder,
+	type Client,
 	EmbedBuilder,
 	type Message,
 	type MessageCreateOptions,
@@ -26,17 +27,38 @@ const TOOL_INPUT_LIMIT = 200;
 const READER_EMBED_LIMIT = 4000;
 const READER_EMBED_COLOR = 0xf0b232;
 const PRIVATE_FOOTER = "🔒 Private – Wicek can't see this";
+const SENDABLE_EXTENSIONS = [
+	'png',
+	'jpg',
+	'jpeg',
+	'gif',
+	'webp',
+	'svg',
+	'pdf',
+	'csv',
+	'json',
+	'txt',
+	'md',
+	'html',
+];
+const FILE_PATH_REGEX = new RegExp(
+	`/[\\w./-]+\\.(?:${SENDABLE_EXTENSIONS.join('|')})`,
+	'gi',
+);
+
+export interface MessageTarget {
+	send: (options: MessageCreateOptions) => Promise<Message>;
+}
 
 export async function streamToDiscord(
 	events: AsyncIterable<AgentEvent>,
 	channel: SendableChannels,
 	signal?: AbortSignal,
-): Promise<{ sessionId: string; resultText: string }> {
+): Promise<{ sessionId: string }> {
 	let currentMessage: Message | null = null;
 	let buffer = '';
 	let lastFlush = 0;
 	let sessionId = '';
-	let resultText = '';
 	let isThinking = false;
 	let gotResult = false;
 	let gotError = false;
@@ -60,7 +82,7 @@ export async function streamToDiscord(
 		if (!buffer) return;
 
 		while (buffer.length > SAFE_LIMIT) {
-			const splitAt = findSplitPoint(buffer);
+			const splitAt = findSplitPoint(buffer, SAFE_LIMIT);
 			const chunk = buffer.slice(0, splitAt);
 			buffer = buffer.slice(splitAt);
 			if (buffer.startsWith('\n')) buffer = buffer.slice(1);
@@ -157,7 +179,6 @@ export async function streamToDiscord(
 
 				case 'result': {
 					sessionId = event.sessionId;
-					resultText = event.text;
 					gotResult = true;
 					break;
 				}
@@ -175,7 +196,7 @@ export async function streamToDiscord(
 						detail += `\n\n**What it was doing:**\n${trail}`;
 					}
 					await sendText(channel, truncate(detail, SAFE_LIMIT));
-					return { sessionId, resultText: '' };
+					return { sessionId };
 				}
 			}
 		}
@@ -189,7 +210,7 @@ export async function streamToDiscord(
 					'**Error:** The AI process terminated unexpectedly. Please try again.',
 				);
 			}
-			return { sessionId, resultText: '' };
+			return { sessionId };
 		}
 
 		if (buffer) {
@@ -207,10 +228,23 @@ export async function streamToDiscord(
 		).catch(() => {});
 	}
 
-	return { sessionId, resultText };
+	return { sessionId };
 }
 
-function sendText(channel: SendableChannels, content: string) {
+export async function sendDirectMessage(
+	client: Client,
+	userId: string,
+	text: string,
+) {
+	const user = await client.users.fetch(userId);
+	const posts = new Map<Message, string>();
+	for (const chunk of splitText(text, SAFE_LIMIT)) {
+		posts.set(await sendText(user, chunk), chunk);
+	}
+	await attachMentionedFiles(posts);
+}
+
+function sendText(channel: MessageTarget, content: string) {
 	return channel.send({
 		content: redactSecrets(content),
 		flags: MessageFlags.SuppressEmbeds,
@@ -228,10 +262,13 @@ function editText(message: Message, content: string) {
 // from the agent's posts so file paths in it never become attachments.
 // Discord builds no link previews from embed text.
 export async function sendReaderAnswer(
-	target: { send: (options: MessageCreateOptions) => Promise<unknown> },
+	target: MessageTarget,
 	{ answer }: Pick<ReaderAnswer, 'answer'>,
 ) {
-	const chunks = splitText(redactSecrets(answer), READER_EMBED_LIMIT);
+	const chunks = splitText(
+		redactSecrets(answer).trim() || '(empty answer)',
+		READER_EMBED_LIMIT,
+	);
 	for (const [index, chunk] of chunks.entries()) {
 		const embed = new EmbedBuilder()
 			.setColor(READER_EMBED_COLOR)
@@ -245,10 +282,9 @@ export async function sendReaderAnswer(
 
 function splitText(text: string, limit: number): string[] {
 	const chunks: string[] = [];
-	let remaining = text.trim() || '(empty answer)';
+	let remaining = text.trim();
 	while (remaining.length > limit) {
-		const newlineAt = remaining.lastIndexOf('\n', limit);
-		const splitAt = newlineAt > limit / 2 ? newlineAt : limit;
+		const splitAt = findSplitPoint(remaining, limit);
 		chunks.push(remaining.slice(0, splitAt));
 		remaining = remaining.slice(splitAt).replace(/^\n/, '');
 	}
@@ -256,9 +292,9 @@ function splitText(text: string, limit: number): string[] {
 	return chunks;
 }
 
-function findSplitPoint(text: string): number {
-	const newlineAt = text.lastIndexOf('\n', SAFE_LIMIT);
-	return newlineAt > SAFE_LIMIT / 2 ? newlineAt : SAFE_LIMIT;
+function findSplitPoint(text: string, limit: number): number {
+	const newlineAt = text.lastIndexOf('\n', limit);
+	return newlineAt > limit / 2 ? newlineAt : limit;
 }
 
 function ensureLineStart(buf: string): string {
@@ -284,7 +320,7 @@ const TOOL_VERBS: Record<string, string> = {
 
 function compactToolLabel(name: string, input: string): string {
 	if (name === 'Skill') return input ? `Used skill: ${input}` : 'Used a skill';
-	if (name === 'Task')
+	if (name === 'Agent')
 		return input ? `Spawned sub-agent: ${input}` : 'Spawned a sub-agent';
 	if (name.startsWith('mcp__'))
 		return `Used ${name.slice(5).split('__').join(' · ')}`;
@@ -295,28 +331,8 @@ function formatToolLine(label: string, count: number): string {
 	return count > 1 ? `-# ${label} ×${count}\n` : `-# ${label}\n`;
 }
 
-const FILE_PATH_REGEX =
-	/(?:\/[\w./-]+\.(?:png|jpg|jpeg|gif|webp|svg|pdf|csv|json|txt|md|html))/gi;
-
-const SENDABLE_EXTENSIONS = new Set([
-	'.png',
-	'.jpg',
-	'.jpeg',
-	'.gif',
-	'.webp',
-	'.svg',
-	'.pdf',
-	'.csv',
-	'.json',
-	'.txt',
-	'.md',
-	'.html',
-]);
-
 function isSendableArtifact(path: string): boolean {
-	const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
 	return (
-		SENDABLE_EXTENSIONS.has(ext) &&
 		!path.includes('/attachments/') &&
 		existsSync(path) &&
 		!isInsideGitRepo(path)
@@ -333,7 +349,7 @@ function isInsideGitRepo(path: string): boolean {
 	}
 }
 
-export async function attachMentionedFiles(posts: Map<Message, string>) {
+async function attachMentionedFiles(posts: Map<Message, string>) {
 	const attached = new Set<string>();
 
 	for (const [message, content] of posts) {

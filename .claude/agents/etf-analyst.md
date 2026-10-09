@@ -35,10 +35,6 @@ Use only these; do not fetch arbitrary pages:
 - Issuer data / holdings: iShares (ishares.com, blackrock.com), justETF
 - News: Reuters, Bloomberg, CNBC, Financial Times, and company investor-relations pages
 
-If WebFetch or curl is blocked (403, 429, consent wall, empty page), open the same
-allowlisted URL in the chrome-devtools browser (`navigate_page`, then
-`take_snapshot` or `evaluate_script` to read it). The allowlist still applies.
-
 If a figure can't be confirmed from these, say so in one short note rather than
 guessing or hedging across conflicting sources.
 

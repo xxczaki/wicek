@@ -4,3 +4,4 @@ dist/
 .env.*
 !.env.example
 data/
+__pycache__/

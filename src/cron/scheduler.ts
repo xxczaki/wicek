@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Client, type Message, MessageFlags, type User } from 'discord.js';
+import type { Client } from 'discord.js';
 import { type ScheduledTask, schedule, validate } from 'node-cron';
 import { streamAgent } from '../claude/agent.ts';
 import { setSession } from '../claude/sessions.ts';
-import { attachMentionedFiles } from '../stream/discord.ts';
+import { sendDirectMessage } from '../stream/discord.ts';
 import logger from '../utils/logger.ts';
 
 export interface JobDef {
@@ -30,53 +30,12 @@ function loadCronConfig(configPath: string): CronJobDef[] {
 	}
 }
 
-const FAILURE_DETAIL_LIMIT = 1_600;
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}
-
-async function notifyFailure(user: User, job: JobDef, reason: string) {
-	const detail =
-		reason.length > FAILURE_DETAIL_LIMIT
-			? `${reason.slice(0, FAILURE_DETAIL_LIMIT)}…`
-			: reason;
-	const content = [
-		`⚠️ Job \`${job.name}\` failed.`,
-		'',
-		detail,
-		'',
-		'No result was delivered. Check Wicek authentication and logs.',
-	].join('\n');
-
-	try {
-		await user.send({ content, flags: MessageFlags.SuppressEmbeds });
-		logger.info({ name: job.name }, 'Job failure notification delivered');
-	} catch (error) {
-		logger.error(
-			{ error, name: job.name },
-			'Failed to deliver job failure notification',
-		);
-	}
-}
-
 export async function executeJob(
 	job: JobDef,
 	client: Client,
 	agent: typeof streamAgent = streamAgent,
 ) {
 	logger.info({ name: job.name }, 'Executing job');
-
-	let user: User;
-	try {
-		user = await client.users.fetch(job.targetUserId);
-	} catch (error) {
-		logger.error(
-			{ error, userId: job.targetUserId },
-			'Failed to fetch target user',
-		);
-		return;
-	}
 
 	let failure: string | undefined;
 	let text = '';
@@ -96,62 +55,24 @@ export async function executeJob(
 			}
 		}
 	} catch (error) {
-		failure = errorMessage(error);
+		failure = error instanceof Error ? error.message : String(error);
 	}
 
 	if (!failure && !text) {
 		failure = 'The agent completed without producing a response.';
 	}
-
-	if (failure) {
-		logger.error({ name: job.name, reason: failure }, 'Job failed');
-		await notifyFailure(user, job, failure);
-		return;
-	}
+	if (failure) logger.error({ name: job.name, reason: failure }, 'Job failed');
 
 	try {
-		const posts = new Map<Message, string>();
-		for (const chunk of splitMessage(text)) {
-			const message = await user.send({
-				content: chunk,
-				flags: MessageFlags.SuppressEmbeds,
-			});
-			posts.set(message, chunk);
-		}
-		await attachMentionedFiles(posts);
-		logger.info({ name: job.name, chars: text.length }, 'Job delivered');
+		await sendDirectMessage(
+			client,
+			job.targetUserId,
+			failure ? describeFailure(job, failure) : text,
+		);
+		logger.info({ name: job.name, failed: Boolean(failure) }, 'Job delivered');
 	} catch (error) {
 		logger.error({ error, name: job.name }, 'Job delivery failed');
 	}
-}
-
-export async function sendDirectMessage(
-	client: Client,
-	userId: string,
-	text: string,
-) {
-	const user = await client.users.fetch(userId);
-	for (const chunk of splitMessage(text)) {
-		await user.send({ content: chunk, flags: MessageFlags.SuppressEmbeds });
-	}
-}
-
-function splitMessage(text: string, limit = 2000): string[] {
-	if (text.length <= limit) return [text];
-
-	const chunks: string[] = [];
-	let remaining = text;
-	while (remaining.length > 0) {
-		if (remaining.length <= limit) {
-			chunks.push(remaining);
-			break;
-		}
-		const splitPoint = remaining.lastIndexOf('\n', limit);
-		const cutAt = splitPoint > limit / 2 ? splitPoint : limit;
-		chunks.push(remaining.slice(0, cutAt));
-		remaining = remaining.slice(cutAt);
-	}
-	return chunks;
 }
 
 export function initCronScheduler(client: Client, configPath?: string) {
@@ -197,4 +118,14 @@ export function stopCronScheduler() {
 		task.stop();
 	}
 	tasks.length = 0;
+}
+
+function describeFailure(job: JobDef, reason: string): string {
+	return [
+		`⚠️ Job \`${job.name}\` failed.`,
+		'',
+		reason,
+		'',
+		'No result was delivered. Check Wicek authentication and logs.',
+	].join('\n');
 }

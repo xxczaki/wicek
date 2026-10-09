@@ -6,10 +6,6 @@ export class AgentInbox {
 	#isClosed = false;
 	#wake: (() => void) | null = null;
 
-	get isClosed() {
-		return this.#isClosed;
-	}
-
 	get hasPending() {
 		return this.#pending.length > 0;
 	}

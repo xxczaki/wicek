@@ -5,7 +5,7 @@ description: Inspect and (with confirmation) change UniFi networks – clients, 
 
 # UniFi
 
-Plain `curl` against the controller API, `node -e` for JSON processing (no `jq` in the image).
+Plain `curl` against the controller API, `jq` for JSON processing.
 Never print credentials, cookies, API keys, or WLAN passphrases (`x_passphrase` in `wlanconf`).
 
 ## Access
@@ -24,16 +24,7 @@ Add `-H 'content-type: application/json' -d '<json>'` for POST. The broker allow
 controller: a `PUT` returns 405. For a confirmed write that needs `PUT`, tell the user it must be allowed under
 the `10.10.10.1` entry's `methods` in homelab `apps/wicek/chart.yaml`. Classic endpoints return
 `{meta:{rc}, data:[...]}`, v2 endpoints return plain JSON. Device objects are 30 KB+, so project fields with
-`node -e` before printing.
-
-Adding a controller (e.g. an office): no login needed with an API key. Use the Site Manager cloud connector
-with header `X-API-KEY` and base `https://api.ui.com/v1/connector/consoles/<consoleId>`. Every
-`/proxy/network/...` path below works unchanged, writes included. Get `consoleId` from
-`GET https://api.ui.com/v1/hosts`. A local console also accepts an API key (Network → Settings → Control Plane →
-Integrations) at its own URL. To set one up: the user stores the key as an API Credential item in the 1Password
-`Wicek` vault, then homelab gets a `OnePasswordItem` (`apps/wicek/onepassword-items.yaml`), a `broker.secrets`
-entry, and a `broker.hosts` entry for the host (`apps/wicek/chart.yaml`). The broker has no `X-API-KEY` auth type
-yet, so that needs a small change in `broker/credentials.py` first. List the controller under Controllers above.
+`jq` before printing.
 
 ## Endpoints
 

@@ -15,7 +15,7 @@ A minimal Node.js application that drives the [Claude Agent SDK](https://docs.cl
 
 ## Motivation
 
-[OpenClaw](https://openclaw.ai/) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~500 lines of TypeScript, a single Deployment, and a Helm chart.
+[OpenClaw](https://openclaw.ai/) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~1,600 lines of TypeScript for the core (Discord, Agent SDK, cron, memory), ~1,300 more for the optional webhooks, mail, and readers, a single Deployment, and a Helm chart.
 
 ## What it does
 
@@ -31,7 +31,7 @@ A minimal Node.js application that drives the [Claude Agent SDK](https://docs.cl
 
 ## Deployment
 
-Runs on a single-node K3s cluster (Raspberry Pi 4). See [xxczaki/homelab](https://github.com/xxczaki/homelab) for the full cluster setup and [xxczaki/charts](https://github.com/xxczaki/charts) for the Helm chart.
+Runs on a single-node K3s cluster (Raspberry Pi 5). See [xxczaki/homelab](https://github.com/xxczaki/homelab) for the full cluster setup and [xxczaki/charts](https://github.com/xxczaki/charts) for the Helm chart.
 
 ### Credential broker
 
