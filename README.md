@@ -6,16 +6,16 @@
 
 [![CI](https://github.com/xxczaki/wicek/actions/workflows/ci.yml/badge.svg)](https://github.com/xxczaki/wicek/actions/workflows/ci.yml)
 
-> A personal assistant on Discord, powered by the Claude Agent SDK and running on a Raspberry Pi
+> A task-focused personal agent on Discord, running on your own hardware and powered by Claude
 
-Wicek is a single-user assistant you talk to in Discord. It works across your homelab, your home, your inbox, your bank, and websites you're logged in to. It's small on purpose: a TypeScript app, a Python credential broker, one Deployment, and a Helm chart.
+Wicek does work across your homelab, home, inbox, bank, and logged-in websites. It has no persona and no small talk: you ask, it works, and it reports back briefly. Under the hood it's small on purpose: a TypeScript app, a Python credential broker, one Deployment, and a Helm chart.
 
 > [!WARNING]
 > This project is experimental and should not be used directly as-is.
 
 ## History
 
-Wicek started from [OpenClaw](https://openclaw.ai/) (run via [openclaw-rocks](https://github.com/openclaw-rocks)), the initial inspiration. OpenClaw is a broad agent platform, and in a single-user setup on a Raspberry Pi most of it went unused. Wicek kept the parts that were used (Discord, a browser, scheduled prompts, memory), built them on Claude Code instead of a platform of its own, and replaced it.
+Wicek started from [OpenClaw](https://openclaw.ai/) (run via [openclaw-rocks](https://github.com/openclaw-rocks)), the initial inspiration. OpenClaw is a broad agent platform, and for one person on a Raspberry Pi it was too bloated, too pricey, and too risky in terms of security. Wicek kept the parts that were used (Discord, a browser, scheduled prompts, memory), built them on Claude Code instead of a platform of its own, and replaced it.
 
 In September and October 2026, hosted personal agents arrived: Meta's [Muse](https://www.pbs.org/newshour/nation/meta-launches-personal-ai-agent-muse-to-help-with-everyday-tasks), OpenAI's [Dots](https://techcrunch.com/2026/09/29/openai-launches-dots-its-bubbly-agentic-avatar/), and [Grok Bot](https://9to5mac.com/2026/10/09/grok-bot-just-got-its-own-email-address-heres-how-to-claim-yours/) with its own email inbox. They run on their vendor's machines with their own browser, computer, or inbox, and act inside the user's accounts. That set the direction for Wicek's roadmap: Grok Bot getting its own inbox to sign in to services led directly to website logins, where Wicek uses logins from a 1Password vault, emailed codes included, without the model ever seeing a password.
 
@@ -23,30 +23,23 @@ Wicek follows the same direction on your own hardware. Its credentials, memory, 
 
 ## Philosophy
 
-- **Small enough to read in an afternoon.** Claude Code already ships memory, skills, subagents, and tools. Wicek connects them to Discord and the homelab instead of rebuilding them.
-- **The agent never holds a secret.** Credentials live in a broker sidecar that adds them to requests on the way out. API tokens, SSH keys, and website passwords never enter the agent's container or its context.
-- **Untrusted text only reaches agents that can't act on it.** Email, bank data, and logged-in websites are handled by narrow subagents or isolated readers with only the tools that one job needs. What they send back is treated as data, never as instructions.
-- **Read-only unless you ask.** Mail, bank, and website access are read-only by design, and network changes need a confirmation in chat.
-- **Everything lives in git.** Prompts, agents, skills, cron jobs, and the deployment are in repos that ArgoCD applies. Wicek changes itself the same way you would: by opening a pull request.
-- **Quiet unless it matters.** Alerts are triaged once when they start firing, and known noise, like the ISP's nightly outages, collapses to one line.
+- **Minimal surface.** As little code and instruction as possible. Point the agent in the right direction and trust it to work out the rest, instead of wrapping every API in an abstraction. Less to maintain, little lost in quality.
+- **Creative constraints over more code.** When something gets risky or complex, constrain it (isolate it, narrow its tools, cut its network) rather than adding layers on top.
+- **Local means control.** It runs on your hardware so it can be trusted with your own systems: SSH, Home Assistant, the network.
+- **Security is worth paying for.** It serves one person, not thousands, so extra sidecars and VMs for isolation are a fine trade.
+- **The agent never holds a secret.** A broker sidecar adds credentials on the way out. Tokens, SSH keys, and website passwords never enter the agent's container or context.
+- **Untrusted text only reaches agents that can't act on it.** Email, bank data, and logged-in websites go to narrow subagents or isolated readers, and what comes back is treated as data.
+- **GitOps, not self-configuration.** Prompts, agents, skills, cron jobs, and the deployment live in git. Wicek proposes changes to itself as pull requests instead of editing its own config.
 
-## What it's good at
+## Capabilities
 
-- **Conversations** – DMs, @mentions, and threads via [discord.js](https://discord.js.org/). Thinking, tool use, and answers stream into Discord, and follow-up messages steer a task that's still running. Attachments go in, generated files and screenshots come back.
-- **Running the homelab** – the K3s cluster, ArgoCD, SSH to the Raspberry Pi, and Grafana Cloud metrics and logs. Grafana alerts and GitHub CI failures arrive as webhooks and start a triage run, and a weekly sweep fixes broken CI and dependency PRs across the user's repos.
-- **Home and network** – Home Assistant (devices, sensors, automations, logs) and UniFi (clients, Wi-Fi quality, WAN drops), with changes only after confirmation.
-- **Mail, calendar, and money** – read-only iCloud mail through a quarantined subagent, the iCloud calendar, and bank balances and transactions through an isolated reader.
-- **Websites you're logged in to** – move a Login item into a dedicated 1Password vault and Wicek can use it right away, emailed login codes included, without ever seeing the password. For example, it reads the contracts in a Check24 account.
-- **Scheduled work** – GitOps-defined cron prompts, such as the weekly ETF recap and the weekly maintenance runs.
-- **Memory and self-update** – Claude Code's auto-memory on persistent storage, and changes to its own repos through pull requests that ArgoCD deploys after merge.
-
-## Under the hood
-
-- **Agent** – one Agent SDK `query()` per request on a Pro/Max subscription (OAuth token, no API key)
-- **Browser** – a Chromium sidecar on a virtual display, driven through [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
-- **Webhooks** – `POST /hooks/github`, `POST /hooks/grafana`, and `GET /healthz` on `WEBHOOK_PORT` (default 8080), exposed via Tailscale Funnel. Alerts are debounced before a run starts
-- **Subagents and skills** – `.claude/agents/` (ETF analysis, infrastructure, Home Assistant, repo maintenance) and `.claude/skills/` (Apple Calendar, ETF, Home Assistant, UniFi)
-- **Cron jobs** – scheduled prompts in `cron.json`
+- **Chat** – DMs, mentions, and threads, with live progress, steering mid-task, and files in both directions
+- **Homelab** – K3s, ArgoCD, Grafana Cloud, and SSH, plus triage of Grafana alerts and GitHub CI failures
+- **Home and network** – Home Assistant and UniFi
+- **Mail, calendar, and bank** – read-only iCloud mail, the iCloud calendar, and bank transactions
+- **Website logins** – logins from a 1Password vault, emailed codes included, without the model seeing a password
+- **Schedules** – cron prompts in git, such as the weekly ETF recap and maintenance sweeps
+- **Memory** – Claude Code's auto-memory on persistent storage
 
 ## Deployment
 
