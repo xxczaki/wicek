@@ -63,6 +63,7 @@ export function buildGrafanaPrompt(lines: string[]): string {
 		'3. Alloy (k8s-monitoring) logs for remote-write or scrape errors – a telemetry gap can look like an outage.',
 		'4. UniFi WAN stats (https://10.10.10.1) for internet drops – the home connection drops nightly around 03:00–04:00 and 06:00 CEST.',
 		'Do not change cluster, network, or Grafana config. Run any read-only check you would suggest yourself. Report only the conclusions – likely cause, key evidence, and whether action is needed (and what) – Discord-formatted, under 1500 characters.',
+		'If a WAN drop on the UniFi side covers the alert window and the cluster is otherwise healthy, it is a known Telekom outage: reply with only one line, e.g. "🌐 Telekom drop 01:23–01:46Z – alerts expected, nothing to do."',
 	].join('\n');
 }
 
