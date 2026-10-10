@@ -13,7 +13,11 @@ from mitmproxy import http
 import mail
 
 PLACEHOLDER_PREFIX = "WICEK_LOGIN_"
-PLACEHOLDER = re.compile(rb"WICEK_LOGIN_([a-z0-9]+)_(USERNAME|PASSWORD)")
+USERNAME_DOMAIN = "wicek.invalid"
+PLACEHOLDER = re.compile(
+    rb"WICEK_LOGIN_([a-z0-9]+)_(USERNAME|PASSWORD)(?:(?:@|%40)wicek\.invalid)?",
+    re.IGNORECASE,
+)
 ITEM_ID = re.compile(r"[a-z0-9]+")
 CODE = re.compile(r"(?<!\d)\d{4,8}(?!\d)")
 OP_TIMEOUT_SECONDS = 20
@@ -52,13 +56,14 @@ def fill_placeholders(request: http.Request, auth: dict):
     body = request.raw_content
     if (
         not body
-        or PLACEHOLDER_PREFIX.encode() not in body
+        or PLACEHOLDER_PREFIX.lower().encode() not in body.lower()
         or request.headers.get("content-encoding")
     ):
         return
 
     content_type = request.headers.get("content-type", "")
-    for item_id in {match[1].decode() for match in PLACEHOLDER.finditer(body)}:
+    values = {}
+    for item_id in {match[1].decode().lower() for match in PLACEHOLDER.finditer(body)}:
         item = run_op(auth, "item", "get", item_id)
         if not is_allowed(item_domains(item), request.pretty_host):
             logger.warning(f"login {item_id} not filled for {request.pretty_host}")
@@ -66,12 +71,15 @@ def fill_placeholders(request: http.Request, auth: dict):
         for purpose in ("USERNAME", "PASSWORD"):
             value = field_value(item, purpose)
             if value is not None:
-                body = body.replace(
-                    placeholder(item_id, purpose).encode(),
-                    encode_for(content_type, value).encode(),
-                )
+                values[(item_id, purpose)] = encode_for(content_type, value).encode()
         logger.info(f"login {item_id} filled for {request.pretty_host}")
-    request.content = body
+
+    request.content = PLACEHOLDER.sub(
+        lambda match: values.get(
+            (match[1].decode().lower(), match[2].decode().upper()), match[0]
+        ),
+        body,
+    )
 
 
 def list_logins(auth: dict) -> list[dict]:
@@ -166,6 +174,8 @@ def field_value(item: dict, purpose: str) -> str | None:
 
 
 def placeholder(item_id: str, purpose: str) -> str:
+    if purpose == "USERNAME":
+        return f"{PLACEHOLDER_PREFIX}{item_id}_{purpose}@{USERNAME_DOMAIN}"
     return f"{PLACEHOLDER_PREFIX}{item_id}_{purpose}"
 
 

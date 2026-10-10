@@ -51,12 +51,12 @@ def login_request(host: str, content_type: str, body: bytes):
     [
         (
             "application/x-www-form-urlencoded",
-            b"u=WICEK_LOGIN_abc123_USERNAME&p=WICEK_LOGIN_abc123_PASSWORD",
+            b"u=WICEK_LOGIN_abc123_USERNAME%40wicek.invalid&p=WICEK_LOGIN_abc123_PASSWORD",
             b"u=me%40example.com&p=p%26ss+%22w%22",
         ),
         (
             "application/json",
-            b'{"u":"WICEK_LOGIN_abc123_USERNAME","p":"WICEK_LOGIN_abc123_PASSWORD"}',
+            b'{"u":"wicek_login_abc123_username@wicek.invalid","p":"WICEK_LOGIN_abc123_PASSWORD"}',
             b'{"u":"me@example.com","p":"p&ss \\"w\\""}',
         ),
     ],
@@ -91,7 +91,7 @@ def test_lists_logins_without_values():
         "title": "Check24",
         "domains": ["check24.com", "check24.de"],
         "placeholders": {
-            "username": "WICEK_LOGIN_abc123_USERNAME",
+            "username": "WICEK_LOGIN_abc123_USERNAME@wicek.invalid",
             "password": "WICEK_LOGIN_abc123_PASSWORD",
         },
     }
