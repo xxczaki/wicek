@@ -8,7 +8,7 @@
 
 > Opinionated, task-focused personal agent
 
-Wicek takes care of tasks across the services and systems you rely on, right from Discord. It has no persona and no small talk: you ask, it works, and it reports back briefly. Under the hood it's small on purpose: a TypeScript app, a Python credential broker, one Deployment, and a Helm chart.
+Wicek takes care of tasks across the services and systems you rely on, right from Discord. It has no persona and no small talk: you ask, it works, and it reports back briefly. Under the hood it's small on purpose: a lean TypeScript app that deploys to Kubernetes with a single Helm chart.
 
 > [!WARNING]
 > This project is experimental and should not be used directly as-is.
