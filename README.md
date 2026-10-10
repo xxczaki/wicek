@@ -6,28 +6,41 @@
 
 [![CI](https://github.com/xxczaki/wicek/actions/workflows/ci.yml/badge.svg)](https://github.com/xxczaki/wicek/actions/workflows/ci.yml)
 
-> Task-focused AI assistant running as a Discord bot, powered by Claude Code
+> Opinionated, task-focused personal agent
 
-A minimal Node.js application that drives the [Claude Agent SDK](https://docs.claude.com/en/docs/agent-sdk) and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([openclaw-rocks](https://github.com/openclaw-rocks)) with something lean and maintainable.
+Wicek takes care of tasks across the services and systems you rely on, right from Discord. It has no persona and no small talk: you ask, it works, and it reports back briefly. Under the hood it's small on purpose: a lean TypeScript app that deploys to Kubernetes with a single Helm chart.
 
 > [!WARNING]
 > This project is experimental and should not be used directly as-is.
 
-## Motivation
+## History
 
-[OpenClaw](https://openclaw.ai/) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~1,600 lines of TypeScript for the core (Discord, Agent SDK, cron, memory), ~1,300 more for the optional webhooks, mail, and readers, a single Deployment, and a Helm chart.
+Wicek started as a replacement for OpenClaw, its initial inspiration, which was too bloated, too pricey, and too risky for one person on a Raspberry Pi. It was built from scratch around Claude Code, which already provides the agent loop, memory, skills, and subagents. Wicek adds the Discord interface, configuration that lives entirely in git instead of being changed by the agent, and a security model built on isolation.
 
-## What it does
+When hosted personal agents like Meta's Muse, OpenAI's Dots, and Grok Bot arrived in late 2026, they raised the bar for what a personal agent is expected to do, from browsing on its own to acting inside your accounts, and much of Wicek's later roadmap, website logins included, grew out of them. Wicek takes the same direction on your own hardware, with fewer integrations and stricter boundaries.
 
-- **Discord integration** – DMs, @mentions, and threaded conversations via [discord.js](https://discord.js.org/)
-- **Claude Agent SDK** – runs `query()` per request on a Pro/Max subscription (OAuth token, no API key), streaming results back to Discord with thinking (blockquotes), tool use, and text
-- **Browser automation** – Chromium sidecar on a virtual display with [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), screenshots auto-attached to Discord
-- **Cron jobs** – GitOps-defined scheduled prompts (e.g., daily ETF updates)
-- **Webhooks** – GitHub CI failures and Grafana alerts start debounced agent runs (`POST /hooks/github`, `POST /hooks/grafana`, `GET /healthz` on `WEBHOOK_PORT`, default 8080), exposed via Tailscale Funnel
-- **Custom subagents** – `.claude/agents/` for ETF analysis, infrastructure ops, Home Assistant
-- **File handling** – receives Discord attachments, sends back generated files and screenshots
-- **Self-update** – knows how to push changes through the GitOps pipeline (git -> ArgoCD)
-- **Long-term memory** – Claude Code's native auto-memory on persistent storage
+## Philosophy
+
+- **Minimal surface.** As little code and instruction as possible. Point the agent in the right direction and trust it to work out the rest, instead of wrapping every API in an abstraction.
+- **Creative constraints over more code.** When something gets risky or complex, constrain it (isolate it, narrow its tools, cut its network) rather than adding layers on top.
+- **Architecture over instructions.** Prompts and filters are a first layer, and adaptive attacks get past them ([The Attacker Moves Second](https://arxiv.org/abs/2510.09023)). The guarantees come from what an agent can't do: hold credentials, reach the network, or call tools it wasn't given.
+- **No agent gets all three.** Following Meta's [Agents Rule of Two](https://simonw.substack.com/p/new-prompt-injection-papers-agents), an agent that reads untrusted data next to sensitive data gets no way to act or reach out. Readers, described below, are how Wicek does this.
+- **The agent never holds a secret.** A broker sidecar adds credentials on the way out. Tokens, SSH keys, and website passwords never enter the agent's container or context.
+- **Security is worth paying for.** It serves one person, not thousands, so extra pods and VMs for isolation are a fine trade. The boundaries are maintained infrastructure (Kata, Cilium, Kubernetes policies) that rarely changes, which is where review effort is best spent.
+- **Local means control.** It runs on your hardware so it can be trusted with your own systems: SSH, Home Assistant, the network.
+- **GitOps, not self-configuration.** Prompts, agents, skills, cron jobs, and the deployment live in git. Wicek proposes changes to itself as pull requests instead of editing its own config.
+
+Some data, like bank transactions, is both sensitive and partly written by third parties. Wicek doesn't read it itself. It asks a **reader**: a separate agent with a single job, running in its own Kata VM, whose network access is limited down to the DNS names of the one API it needs. The reader's answer goes straight to you in Discord and never back to the main agent, so text a third party wrote can't steer an agent that's able to act. It's a static take on the [dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/) and [CaMeL](https://arxiv.org/abs/2503.18813): written once per integration instead of planned per request.
+
+## Capabilities
+
+- **Chat** – DMs, mentions, and threads, with live progress, steering mid-task, and files in both directions
+- **Homelab** – K3s, ArgoCD, Grafana Cloud, and SSH, plus triage of Grafana alerts and GitHub CI failures
+- **Home and network** – Home Assistant and UniFi
+- **Mail, calendar, and bank** – read-only iCloud mail, the iCloud calendar, and bank transactions
+- **Website logins** – logins from a 1Password vault, emailed codes included, without the model seeing a password
+- **Schedules** – cron prompts in git, such as the weekly ETF recap and maintenance sweeps
+- **Memory** – Claude Code's auto-memory on persistent storage
 
 ## Deployment
 
