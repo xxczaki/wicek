@@ -23,12 +23,13 @@ Wicek follows the same direction on your own hardware. Its credentials, memory, 
 
 ## Philosophy
 
-- **Minimal surface.** As little code and instruction as possible. Point the agent in the right direction and trust it to work out the rest, instead of wrapping every API in an abstraction. Less to maintain, little lost in quality.
+- **Minimal surface.** As little code and instruction as possible. Point the agent in the right direction and trust it to work out the rest, instead of wrapping every API in an abstraction. Fewer wrappers also mean fewer places for vulnerabilities.
 - **Creative constraints over more code.** When something gets risky or complex, constrain it (isolate it, narrow its tools, cut its network) rather than adding layers on top.
-- **Local means control.** It runs on your hardware so it can be trusted with your own systems: SSH, Home Assistant, the network.
-- **Security is worth paying for.** It serves one person, not thousands, so extra sidecars and VMs for isolation are a fine trade.
+- **Architecture over instructions.** Prompts and filters are a first layer, and adaptive attacks get past them ([The Attacker Moves Second](https://arxiv.org/abs/2510.09023)). The guarantees come from what an agent can't do: hold credentials, reach the network, or call tools it wasn't given.
+- **No agent gets all three.** Following Meta's [Agents Rule of Two](https://simonw.substack.com/p/new-prompt-injection-papers-agents), an agent that reads untrusted data next to sensitive data gets no way to act or reach out. Readers run in their own Kata VM, with network access limited down to DNS names, and their answers go straight to you, not to the main agent. It's a static take on the [dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/) and [CaMeL](https://arxiv.org/abs/2503.18813): written once per integration instead of planned per request.
 - **The agent never holds a secret.** A broker sidecar adds credentials on the way out. Tokens, SSH keys, and website passwords never enter the agent's container or context.
-- **Untrusted text only reaches agents that can't act on it.** Email, bank data, and logged-in websites go to narrow subagents or isolated readers, and what comes back is treated as data.
+- **Security is worth paying for.** It serves one person, not thousands, so extra pods and VMs for isolation are a fine trade. The boundaries are maintained infrastructure (Kata, Cilium, Kubernetes policies) that rarely changes, which is where review effort is best spent.
+- **Local means control.** It runs on your hardware so it can be trusted with your own systems: SSH, Home Assistant, the network.
 - **GitOps, not self-configuration.** Prompts, agents, skills, cron jobs, and the deployment live in git. Wicek proposes changes to itself as pull requests instead of editing its own config.
 
 ## Capabilities
