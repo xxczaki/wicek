@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/xxczaki/wicek/actions/workflows/ci.yml/badge.svg)](https://github.com/xxczaki/wicek/actions/workflows/ci.yml)
 
-> A task-focused personal agent on Discord, running on your own hardware and powered by Claude
+> An opinionated, task-focused personal agent on Discord, running on your own hardware and powered by Claude
 
 Wicek does work across your homelab, home, inbox, bank, and logged-in websites. It has no persona and no small talk: you ask, it works, and it reports back briefly. Under the hood it's small on purpose: a TypeScript app, a Python credential broker, one Deployment, and a Helm chart.
 
@@ -17,7 +17,7 @@ Wicek does work across your homelab, home, inbox, bank, and logged-in websites. 
 
 Wicek started as a replacement for OpenClaw, its initial inspiration, which was too bloated, too pricey, and too risky for one person on a Raspberry Pi. Rather than trimming OpenClaw down, it was rebuilt around Claude Code, which already provides the agent loop, memory, skills, and subagents. Wicek adds the Discord interface, configuration that lives entirely in git instead of being changed by the agent, and a security model built on isolation.
 
-When hosted personal agents like Meta's Muse, OpenAI's Dots, and Grok Bot arrived in late 2026, they raised the bar for what a personal agent is expected to do, from browsing on its own to acting inside your accounts, and much of Wicek's later roadmap, website logins included, grew out of them. Wicek takes the same direction in an opinionated way: on your own hardware, with fewer integrations and stricter boundaries.
+When hosted personal agents like Meta's Muse, OpenAI's Dots, and Grok Bot arrived in late 2026, they raised the bar for what a personal agent is expected to do, from browsing on its own to acting inside your accounts, and much of Wicek's later roadmap, website logins included, grew out of them. Wicek takes the same direction on your own hardware, with fewer integrations and stricter boundaries.
 
 ## Philosophy
 
