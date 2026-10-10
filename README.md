@@ -8,10 +8,18 @@
 
 > A personal assistant on Discord, powered by the Claude Agent SDK and running on a Raspberry Pi
 
-Wicek is a single-user assistant you talk to in Discord. It works across your homelab, your home, your inbox, your bank, and websites you're logged in to. It was built to replace [OpenClaw](https://openclaw.ai/) (via [openclaw-rocks](https://github.com/openclaw-rocks)), a broad agent platform where most features went unused in a single-user setup. Wicek does the same job with a small TypeScript app, a small Python credential broker, one Deployment, and a Helm chart.
+Wicek is a single-user assistant you talk to in Discord. It works across your homelab, your home, your inbox, your bank, and websites you're logged in to. It's small on purpose: a TypeScript app, a Python credential broker, one Deployment, and a Helm chart.
 
 > [!WARNING]
 > This project is experimental and should not be used directly as-is.
+
+## History
+
+Wicek started from [OpenClaw](https://openclaw.ai/) (run via [openclaw-rocks](https://github.com/openclaw-rocks)), the initial inspiration. OpenClaw is a broad agent platform, and in a single-user setup on a Raspberry Pi most of it went unused. Wicek kept the parts that were used (Discord, a browser, scheduled prompts, memory), built them on Claude Code instead of a platform of its own, and replaced it.
+
+In September and October 2026, hosted personal agents arrived: Meta's [Muse](https://www.pbs.org/newshour/nation/meta-launches-personal-ai-agent-muse-to-help-with-everyday-tasks), OpenAI's [Dots](https://techcrunch.com/2026/09/29/openai-launches-dots-its-bubbly-agentic-avatar/), and [Grok Bot](https://9to5mac.com/2026/10/09/grok-bot-just-got-its-own-email-address-heres-how-to-claim-yours/) with its own email inbox. They run on their vendor's machines with their own browser, computer, or inbox, and act inside the user's accounts. That set the direction for Wicek's roadmap: Grok Bot getting its own inbox to sign in to services led directly to website logins, where Wicek uses logins from a 1Password vault, emailed codes included, without the model ever seeing a password.
+
+Wicek follows the same direction on your own hardware. Its credentials, memory, and integrations stay there, and you can read every line that touches them, while the model runs on Anthropic's API. It reaches far fewer services than the hosted agents, and you maintain it yourself.
 
 ## Philosophy
 
@@ -21,10 +29,6 @@ Wicek is a single-user assistant you talk to in Discord. It works across your ho
 - **Read-only unless you ask.** Mail, bank, and website access are read-only by design, and network changes need a confirmation in chat.
 - **Everything lives in git.** Prompts, agents, skills, cron jobs, and the deployment are in repos that ArgoCD applies. Wicek changes itself the same way you would: by opening a pull request.
 - **Quiet unless it matters.** Alerts are triaged once when they start firing, and known noise, like the ISP's nightly outages, collapses to one line.
-
-## Compared to hosted agents
-
-[Grok Bot](https://9to5mac.com/2026/10/09/grok-bot-just-got-its-own-email-address-heres-how-to-claim-yours/), Meta's [Muse](https://www.pbs.org/newshour/nation/meta-launches-personal-ai-agent-muse-to-help-with-everyday-tasks), and OpenAI's [Dots](https://techcrunch.com/2026/09/29/openai-launches-dots-its-bubbly-agentic-avatar/) are always-on agents that run on their vendor's machines, with their own browser, computer, or inbox, and connect to your accounts through the vendor's integrations. Wicek is the do-it-yourself version: it runs on your own hardware, its credentials, memory, and integrations stay there, and you can read every line that touches them. The model itself runs on Anthropic's API. It reaches far fewer services, and you maintain it yourself.
 
 ## What it's good at
 
