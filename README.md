@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/xxczaki/wicek/actions/workflows/ci.yml/badge.svg)](https://github.com/xxczaki/wicek/actions/workflows/ci.yml)
 
-> An opinionated, task-focused personal agent on Discord
+> Opinionated, task-focused personal agent
 
 Wicek does work across your homelab, home, inbox, bank, and logged-in websites. It has no persona and no small talk: you ask, it works, and it reports back briefly. Under the hood it's small on purpose: a TypeScript app, a Python credential broker, one Deployment, and a Helm chart.
 
