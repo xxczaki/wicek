@@ -49,9 +49,16 @@ test('keys alerts by fingerprint and start time so a re-fire is new', () => {
 	);
 });
 
-test('describes an alert without internal labels', () => {
+test('describes an alert by its summary', () => {
 	assert.equal(
 		describeAlert(firing),
-		'PodCrashLoopBackOff {namespace=wicek} – wicek is crash looping – since 2026-10-05T01:02:03Z',
+		'PodCrashLoopBackOff – wicek is crash looping – since 2026-10-05 01:02Z',
+	);
+});
+
+test('falls back to labels without internal ones when there is no summary', () => {
+	assert.equal(
+		describeAlert({ ...firing, annotations: {} }),
+		'PodCrashLoopBackOff – namespace=wicek – since 2026-10-05 01:02Z',
 	);
 });

@@ -37,16 +37,17 @@ export function alertKey(alert: GrafanaAlert): string {
 }
 
 export function describeAlert(alert: GrafanaAlert): string {
-	const labels = Object.entries(alert.labels)
-		.filter(([name]) => !HIDDEN_LABELS.has(name) && !name.startsWith('__'))
-		.map(([name, value]) => `${name}=${value}`)
-		.join(', ');
 	const summary =
-		alert.annotations?.summary ?? alert.annotations?.description ?? '';
+		alert.annotations?.summary ??
+		alert.annotations?.description ??
+		Object.entries(alert.labels)
+			.filter(([name]) => !HIDDEN_LABELS.has(name) && !name.startsWith('__'))
+			.map(([name, value]) => `${name}=${value}`)
+			.join(', ');
 	return [
-		`${alert.labels.alertname ?? 'unknown alert'}${labels ? ` {${labels}}` : ''}`,
+		alert.labels.alertname ?? 'unknown alert',
 		summary,
-		`since ${alert.startsAt}`,
+		`since ${alert.startsAt.slice(0, 16).replace('T', ' ')}Z`,
 	]
 		.filter(Boolean)
 		.join(' – ');
