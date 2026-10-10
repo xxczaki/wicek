@@ -15,11 +15,9 @@ Wicek does work across your homelab, home, inbox, bank, and logged-in websites. 
 
 ## History
 
-Wicek started from [OpenClaw](https://openclaw.ai/) (run via [openclaw-rocks](https://github.com/openclaw-rocks)), the initial inspiration. OpenClaw is a broad agent platform, and for one person on a Raspberry Pi it was too bloated, too pricey, and too risky in terms of security. Wicek kept the parts that were used (Discord, a browser, scheduled prompts, memory), built them on Claude Code instead of a platform of its own, and replaced it.
+Wicek started as a replacement for OpenClaw, its initial inspiration, which was too bloated, too pricey, and too risky for one person on a Raspberry Pi. It kept only the parts that were used and built them on Claude Code.
 
-In September and October 2026, hosted personal agents arrived: Meta's [Muse](https://www.pbs.org/newshour/nation/meta-launches-personal-ai-agent-muse-to-help-with-everyday-tasks), OpenAI's [Dots](https://techcrunch.com/2026/09/29/openai-launches-dots-its-bubbly-agentic-avatar/), and [Grok Bot](https://9to5mac.com/2026/10/09/grok-bot-just-got-its-own-email-address-heres-how-to-claim-yours/) with its own email inbox. They run on their vendor's machines with their own browser, computer, or inbox, and act inside the user's accounts. That set the direction for Wicek's roadmap: Grok Bot getting its own inbox to sign in to services led directly to website logins, where Wicek uses logins from a 1Password vault, emailed codes included, without the model ever seeing a password.
-
-Wicek follows the same direction on your own hardware. Its credentials, memory, and integrations stay there, and you can read every line that touches them, while the model runs on Anthropic's API. It reaches far fewer services than the hosted agents, and you maintain it yourself.
+The hosted agents that followed in late 2026, Meta's Muse, OpenAI's Dots, and Grok Bot, shaped the roadmap. Grok Bot getting its own inbox to sign in to services led to website logins. Wicek follows the same direction on your own hardware, with far fewer integrations and nothing it doesn't need.
 
 ## Philosophy
 
