@@ -15,9 +15,9 @@ Wicek does work across your homelab, home, inbox, bank, and logged-in websites. 
 
 ## History
 
-Wicek started as a replacement for OpenClaw, its initial inspiration, which was too bloated, too pricey, and too risky for one person on a Raspberry Pi. It kept only the parts that were used and built them on Claude Code.
+Wicek started as a replacement for OpenClaw, its initial inspiration, which was too bloated, too pricey, and too risky for one person on a Raspberry Pi. Rather than trimming OpenClaw down, it was rebuilt around Claude Code, which already provides the agent loop, memory, skills, and subagents. Wicek adds the Discord interface, configuration that lives entirely in git instead of being changed by the agent, and a security model built on isolation.
 
-The hosted agents that followed in late 2026, Meta's Muse, OpenAI's Dots, and Grok Bot, shaped the roadmap. Grok Bot getting its own inbox to sign in to services led to website logins. Wicek follows the same direction on your own hardware, with far fewer integrations and nothing it doesn't need.
+When hosted personal agents like Meta's Muse, OpenAI's Dots, and Grok Bot arrived in late 2026, they raised the bar for what a personal agent is expected to do, from browsing on its own to acting inside your accounts, and much of Wicek's later roadmap, website logins included, grew out of them. Wicek takes the same direction in an opinionated way: on your own hardware, with fewer integrations and stricter boundaries.
 
 ## Philosophy
 
