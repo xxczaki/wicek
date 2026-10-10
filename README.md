@@ -6,28 +6,39 @@
 
 [![CI](https://github.com/xxczaki/wicek/actions/workflows/ci.yml/badge.svg)](https://github.com/xxczaki/wicek/actions/workflows/ci.yml)
 
-> Task-focused AI assistant running as a Discord bot, powered by Claude Code
+> A personal assistant on Discord, powered by the Claude Agent SDK and running on a Raspberry Pi
 
-A minimal Node.js application that drives the [Claude Agent SDK](https://docs.claude.com/en/docs/agent-sdk) and exposes it through Discord. Built to replace a bloated third-party Kubernetes operator ([openclaw-rocks](https://github.com/openclaw-rocks)) with something lean and maintainable.
+Wicek is a single-user assistant you talk to in Discord. It works across your homelab, your home, your inbox, your bank, and websites you're logged in to. It was built to replace [OpenClaw](https://openclaw.ai/) (via [openclaw-rocks](https://github.com/openclaw-rocks)), a broad agent platform where most features went unused in a single-user setup. Wicek is a single Deployment and a Helm chart: about 1,600 lines of TypeScript for the core (Discord, Agent SDK, cron, memory), 1,500 more for webhooks, mail, readers, and logins, and a 950-line Python credential broker.
 
 > [!WARNING]
 > This project is experimental and should not be used directly as-is.
 
-## Motivation
+## Philosophy
 
-[OpenClaw](https://openclaw.ai/) is a capable AI agent platform with a broad feature set – multiple messaging channels, vector memory, browser automation, self-configuration, and more. For a single-user setup on a Raspberry Pi where only Discord and a handful of tools are needed, most of that goes unused. Wicek replaces it with ~1,600 lines of TypeScript for the core (Discord, Agent SDK, cron, memory), ~1,300 more for the optional webhooks, mail, and readers, a single Deployment, and a Helm chart.
+- **Small enough to read in an afternoon.** Claude Code already ships memory, skills, subagents, and tools. Wicek connects them to Discord and the homelab instead of rebuilding them.
+- **The agent never holds a secret.** Credentials live in a broker sidecar that adds them to requests on the way out. API tokens, SSH keys, and website passwords never enter the agent's container or its context.
+- **Untrusted text only reaches agents that can't act on it.** Email, bank data, and logged-in websites are handled by narrow subagents or isolated readers with only the tools that one job needs. What they send back is treated as data, never as instructions.
+- **Read-only unless you ask.** Mail, bank, and website access are read-only by design, and network changes need a confirmation in chat.
+- **Everything lives in git.** Prompts, agents, skills, cron jobs, and the deployment are in repos that ArgoCD applies. Wicek changes itself the same way you would: by opening a pull request.
+- **Quiet unless it matters.** Alerts are triaged once when they start firing, and known noise, like the ISP's nightly outages, collapses to one line.
 
-## What it does
+## What it's good at
 
-- **Discord integration** – DMs, @mentions, and threaded conversations via [discord.js](https://discord.js.org/)
-- **Claude Agent SDK** – runs `query()` per request on a Pro/Max subscription (OAuth token, no API key), streaming results back to Discord with thinking (blockquotes), tool use, and text
-- **Browser automation** – Chromium sidecar on a virtual display with [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), screenshots auto-attached to Discord
-- **Cron jobs** – GitOps-defined scheduled prompts (e.g., daily ETF updates)
-- **Webhooks** – GitHub CI failures and Grafana alerts start debounced agent runs (`POST /hooks/github`, `POST /hooks/grafana`, `GET /healthz` on `WEBHOOK_PORT`, default 8080), exposed via Tailscale Funnel
-- **Custom subagents** – `.claude/agents/` for ETF analysis, infrastructure ops, Home Assistant
-- **File handling** – receives Discord attachments, sends back generated files and screenshots
-- **Self-update** – knows how to push changes through the GitOps pipeline (git -> ArgoCD)
-- **Long-term memory** – Claude Code's native auto-memory on persistent storage
+- **Conversations** – DMs, @mentions, and threads via [discord.js](https://discord.js.org/). Thinking, tool use, and answers stream into Discord, and follow-up messages steer a task that's still running. Attachments go in, generated files and screenshots come back.
+- **Running the homelab** – the K3s cluster, ArgoCD, SSH to the Raspberry Pi, and Grafana Cloud metrics and logs. Grafana alerts and GitHub CI failures arrive as webhooks and start a triage run, and a weekly sweep fixes broken CI and dependency PRs across the user's repos.
+- **Home and network** – Home Assistant (devices, sensors, automations, logs) and UniFi (clients, Wi-Fi quality, WAN drops), with changes only after confirmation.
+- **Mail, calendar, and money** – read-only iCloud mail through a quarantined subagent, the iCloud calendar, and bank balances and transactions through an isolated reader.
+- **Websites you're logged in to** – move a Login item into a dedicated 1Password vault and Wicek can use it right away, emailed login codes included, without ever seeing the password. For example, it reads the contracts in a Check24 account.
+- **Scheduled work** – GitOps-defined cron prompts, such as the weekly ETF recap and the weekly maintenance runs.
+- **Memory and self-update** – Claude Code's auto-memory on persistent storage, and changes to its own repos through pull requests that ArgoCD deploys after merge.
+
+## Under the hood
+
+- **Agent** – one Agent SDK `query()` per request on a Pro/Max subscription (OAuth token, no API key)
+- **Browser** – a Chromium sidecar on a virtual display, driven through [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
+- **Webhooks** – `POST /hooks/github`, `POST /hooks/grafana`, and `GET /healthz` on `WEBHOOK_PORT` (default 8080), exposed via Tailscale Funnel. Alerts are debounced before a run starts
+- **Subagents and skills** – `.claude/agents/` (ETF analysis, infrastructure, Home Assistant, repo maintenance) and `.claude/skills/` (Apple Calendar, ETF, Home Assistant, UniFi)
+- **Cron jobs** – scheduled prompts in `cron.json`
 
 ## Deployment
 
