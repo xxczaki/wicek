@@ -21,14 +21,16 @@ When hosted personal agents like Meta's Muse, OpenAI's Dots, and Grok Bot arrive
 
 ## Philosophy
 
-- **Minimal surface.** As little code and instruction as possible. Point the agent in the right direction and trust it to work out the rest, instead of wrapping every API in an abstraction. Fewer wrappers also mean fewer places for vulnerabilities.
+- **Minimal surface.** As little code and instruction as possible. Point the agent in the right direction and trust it to work out the rest, instead of wrapping every API in an abstraction.
 - **Creative constraints over more code.** When something gets risky or complex, constrain it (isolate it, narrow its tools, cut its network) rather than adding layers on top.
 - **Architecture over instructions.** Prompts and filters are a first layer, and adaptive attacks get past them ([The Attacker Moves Second](https://arxiv.org/abs/2510.09023)). The guarantees come from what an agent can't do: hold credentials, reach the network, or call tools it wasn't given.
-- **No agent gets all three.** Following Meta's [Agents Rule of Two](https://simonw.substack.com/p/new-prompt-injection-papers-agents), an agent that reads untrusted data next to sensitive data gets no way to act or reach out. Readers run in their own Kata VM, with network access limited down to DNS names, and their answers go straight to you, not to the main agent. It's a static take on the [dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/) and [CaMeL](https://arxiv.org/abs/2503.18813): written once per integration instead of planned per request.
+- **No agent gets all three.** Following Meta's [Agents Rule of Two](https://simonw.substack.com/p/new-prompt-injection-papers-agents), an agent that reads untrusted data next to sensitive data gets no way to act or reach out. Readers, described below, are how Wicek does this.
 - **The agent never holds a secret.** A broker sidecar adds credentials on the way out. Tokens, SSH keys, and website passwords never enter the agent's container or context.
 - **Security is worth paying for.** It serves one person, not thousands, so extra pods and VMs for isolation are a fine trade. The boundaries are maintained infrastructure (Kata, Cilium, Kubernetes policies) that rarely changes, which is where review effort is best spent.
 - **Local means control.** It runs on your hardware so it can be trusted with your own systems: SSH, Home Assistant, the network.
 - **GitOps, not self-configuration.** Prompts, agents, skills, cron jobs, and the deployment live in git. Wicek proposes changes to itself as pull requests instead of editing its own config.
+
+Some data, like bank transactions, is both sensitive and partly written by third parties. Wicek doesn't read it itself. It asks a **reader**: a separate agent with a single job, running in its own Kata VM, whose network access is limited down to the DNS names of the one API it needs. The reader's answer goes straight to you in Discord and never back to the main agent, so text a third party wrote can't steer an agent that's able to act. It's a static take on the [dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/) and [CaMeL](https://arxiv.org/abs/2503.18813): written once per integration instead of planned per request.
 
 ## Capabilities
 
