@@ -188,8 +188,8 @@ importers:
         specifier: ^10.4.0
         version: 10.4.0
       tsdav:
-        specifier: ^2.3.5
-        version: 2.3.5
+        specifier: ^2.4.0
+        version: 2.4.0
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -1312,8 +1312,8 @@ packages:
   ts-mixer@6.0.4:
     resolution: {integrity: sha512-ufKpbmrugz5Aou4wcr5Wc1UUFWOLhq+Fm6qa6P0w0K5Qw2yhaUoiWszhCVuNQyNwrlGiscHOmqYoAox1PtvgjA==}
 
-  tsdav@2.3.5:
-    resolution: {integrity: sha512-aBvpTEUPQn0tNA7eH/lMANJhfj4EizW92BmbOZUJ0EAyh9SQp41HxX8/Ts2WmWZ0GkaZaSiwuR5fXbrJHU3TBA==}
+  tsdav@2.4.0:
+    resolution: {integrity: sha512-SFxerJFxqFj31d87jJwviuhiW1U8tXzHc+u8bg48kTPzdsk14ggVyO+d337cZxxStCyjEYBqlne6RVTr5e8S5Q==}
     engines: {node: '>=18'}
 
   tslib@2.8.1:
@@ -2405,7 +2405,7 @@ snapshots:
 
   ts-mixer@6.0.4: {}
 
-  tsdav@2.3.5:
+  tsdav@2.4.0:
     dependencies:
       debug: 4.4.3
       xml-js: 1.6.11

@@ -19,7 +19,7 @@
     "ical.js": "^2.2.1",
     "node-cron": "^4.6.0",
     "pino": "^10.4.0",
-    "tsdav": "^2.3.5",
+    "tsdav": "^2.4.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
