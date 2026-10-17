@@ -137,8 +137,6 @@ jobs:
           repository: xxczaki/homelab
           token: ${{ secrets.GH_PAT }}
           path: homelab
-      - name: Install yq
-        run: command -v yq || sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_arm64 && sudo chmod +x /usr/local/bin/yq
       - name: Deploy to homelab
         working-directory: homelab
         env:
