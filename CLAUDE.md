@@ -41,27 +41,23 @@ ArgoCD auto-syncs changes (typically within a minute).
 
 **Wicek repo** (github.com/xxczaki/wicek):
 
-- Contains CLAUDE.md, .claude/ config, application code, Dockerfile
-- Changes rebuild the container and redeploy
+- Contains CLAUDE.md, .claude/ config, application code, Dockerfile, and the Helm chart (`deploy/chart/`)
+- A merge to `main` builds the images, then CI commits `chore(wicek): deploy <sha>` to homelab, pinning both the chart and the image to that commit
 
 **Homelab repo** (github.com/xxczaki/homelab):
 
-- `apps/wicek/` – ArgoCD Application + K8s resources
+- `apps/wicek/` – ArgoCD Application (chart from the wicek repo at the deployed commit, plus values) + K8s resources
 - `apps/wicek/resources/` – Sealed secrets, Tailscale egress services
 - Root app at `root-application.yaml` syncs `apps/` recursively
 - Auto-heal and auto-sync enabled
 
-**Charts repo** (github.com/xxczaki/charts):
-
-- `charts/wicek/` – Helm chart
-- Published to https://xxczaki.github.io/charts/
-
 **To update deployment:**
 
 1. Clone the relevant repo to /data/repos/<repo>
-2. Make changes on a branch
+2. Make changes on a branch: code and chart templates in wicek, values in homelab
 3. Push and create PR via `gh pr create`
-4. After merge, ArgoCD syncs automatically
+4. After merge, CI (wicek) or ArgoCD (homelab) rolls it out automatically
+5. To roll back, revert the `chore(wicek): deploy` commit in homelab
 
 ## SSH Access
 
