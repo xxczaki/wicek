@@ -7,6 +7,7 @@ import re
 import ssl
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 
@@ -21,6 +22,9 @@ import mail
 CONFIG_PATH = os.environ.get("BROKER_CONFIG", "/etc/broker/config.json")
 LOGIN_TIMEOUT_SECONDS = 15
 ENABLE_BANKING_TOKEN_LIFETIME_SECONDS = 3600
+GOOGLE_TOKEN_LIFETIME_SECONDS = 3600
+GOOGLE_TOKEN_REFRESH_MARGIN_SECONDS = 300
+GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 STRIPPED_REQUEST_HEADERS = (
     "authorization",
@@ -39,15 +43,28 @@ class UnifiSession:
 
 
 @dataclass
+class GoogleToken:
+    value: str
+    expires_at: float
+
+
+@dataclass
 class Rule:
     host: str
     auth: dict
     methods: list[str] | None = None
+    paths: list[str] | None = None
     insecure_tls: bool = False
     unifi_session: UnifiSession | None = field(default=None, repr=False)
+    google_token: GoogleToken | None = field(default=None, repr=False)
 
     def matches(self, hostname: str) -> bool:
         return fnmatch.fnmatchcase(hostname.lower(), self.host.lower())
+
+    def allows_path(self, path: str) -> bool:
+        if not self.paths:
+            return True
+        return any(fnmatch.fnmatchcase(path, pattern) for pattern in self.paths)
 
 
 class CredentialBroker:
@@ -66,6 +83,7 @@ class CredentialBroker:
                     host=entry["host"],
                     auth=entry["auth"],
                     methods=entry.get("methods"),
+                    paths=entry.get("paths"),
                     insecure_tls=entry.get("insecureTls", False),
                 )
                 for entry in config["hosts"]
@@ -107,6 +125,14 @@ class CredentialBroker:
                 json.dumps(
                     {"error": f"{flow.request.method} is not allowed on {rule.host}"}
                 ),
+                {"content-type": "application/json"},
+            )
+            return
+
+        if not rule.allows_path(flow.request.path.split("?")[0]):
+            flow.response = http.Response.make(
+                403,
+                json.dumps({"error": f"This path is not allowed on {rule.host}"}),
                 {"content-type": "application/json"},
             )
             return
@@ -196,6 +222,18 @@ class CredentialBroker:
                 read_secret(auth["privateKeyFile"]),
             )
             return {"authorization": f"Bearer {token}"}
+        if auth["type"] == "google-service-account":
+            async with self.login_lock:
+                token = rule.google_token
+                if not token or token.expires_at - time.time() < (
+                    GOOGLE_TOKEN_REFRESH_MARGIN_SECONDS
+                ):
+                    rule.google_token = await asyncio.to_thread(
+                        fetch_google_token,
+                        read_secret(auth["keyFile"]),
+                        auth["scopes"],
+                    )
+            return {"authorization": f"Bearer {rule.google_token.value}"}
         if auth["type"] == "unifi":
             async with self.login_lock:
                 if not rule.unifi_session:
@@ -241,6 +279,42 @@ def enable_banking_token(application_id: str, private_key_pem: str) -> str:
         signing_input.encode(), padding.PKCS1v15(), hashes.SHA256()
     )
     return f"{signing_input}.{base64url(signature)}"
+
+
+def fetch_google_token(key_json: str, scopes: list[str]) -> GoogleToken:
+    key = json.loads(key_json)
+    token_uri = key.get("token_uri", GOOGLE_TOKEN_URI)
+    issued_at = int(time.time())
+    header = {"typ": "JWT", "alg": "RS256", "kid": key["private_key_id"]}
+    claims = {
+        "iss": key["client_email"],
+        "scope": " ".join(scopes),
+        "aud": token_uri,
+        "iat": issued_at,
+        "exp": issued_at + GOOGLE_TOKEN_LIFETIME_SECONDS,
+    }
+    signing_input = f"{base64url_json(header)}.{base64url_json(claims)}"
+    signature = load_private_key(key["private_key"]).sign(
+        signing_input.encode(), padding.PKCS1v15(), hashes.SHA256()
+    )
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            "assertion": f"{signing_input}.{base64url(signature)}",
+        }
+    ).encode()
+    request = urllib.request.Request(
+        token_uri,
+        data=body,
+        headers={"content-type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=LOGIN_TIMEOUT_SECONDS) as response:
+        payload = json.load(response)
+    return GoogleToken(
+        value=payload["access_token"],
+        expires_at=issued_at + payload.get("expires_in", GOOGLE_TOKEN_LIFETIME_SECONDS),
+    )
 
 
 def load_private_key(pem: str):

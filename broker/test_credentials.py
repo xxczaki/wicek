@@ -3,6 +3,7 @@ import base64
 import json
 import re
 import threading
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -184,6 +185,110 @@ def test_rejects_methods_outside_the_allowlist(secret):
     run(broker, "request", flow)
 
     assert flow.response.status_code == 405
+
+
+def test_rejects_paths_outside_the_allowlist(secret):
+    broker = CredentialBroker(
+        [
+            Rule(
+                host="sheets.googleapis.com",
+                paths=["/v4/spreadsheets/budget-id", "/v4/spreadsheets/budget-id/*"],
+                auth={"type": "bearer", "tokenFile": secret("token", "real")},
+            )
+        ]
+    )
+    allowed = make_flow(
+        "https://sheets.googleapis.com/v4/spreadsheets/budget-id/values/A1?x=1"
+    )
+    blocked = make_flow("https://sheets.googleapis.com/v4/spreadsheets/other-id")
+
+    run(broker, "request", allowed)
+    run(broker, "request", blocked)
+
+    assert allowed.response is None
+    assert allowed.request.headers["authorization"] == "Bearer real"
+    assert blocked.response.status_code == 403
+    assert "authorization" not in blocked.request.headers
+
+
+def test_google_service_account_exchanges_a_signed_jwt_and_caches_the_token(secret):
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    assertions = []
+
+    class TokenEndpoint(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers["content-length"])).decode()
+            form = dict(urllib.parse.parse_qsl(body))
+            assertions.append(form["assertion"])
+            payload = json.dumps(
+                {"access_token": f"ya29.token-{len(assertions)}", "expires_in": 3599}
+            ).encode()
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), TokenEndpoint)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    token_uri = f"http://127.0.0.1:{server.server_port}/token"
+    key = {
+        "type": "service_account",
+        "private_key_id": "key-123",
+        "private_key": pem,
+        "client_email": "wicek@project.iam.gserviceaccount.com",
+        "token_uri": token_uri,
+    }
+    broker = CredentialBroker(
+        [
+            Rule(
+                host="sheets.googleapis.com",
+                auth={
+                    "type": "google-service-account",
+                    "keyFile": secret("key", json.dumps(key)),
+                    "scopes": ["https://www.googleapis.com/auth/spreadsheets"],
+                },
+            )
+        ]
+    )
+
+    try:
+        flows = [
+            make_flow(
+                "https://sheets.googleapis.com/v4/spreadsheets/id",
+                headers={"authorization": "Bearer placeholder"},
+            )
+            for _ in range(2)
+        ]
+        for flow in flows:
+            run(broker, "request", flow)
+    finally:
+        server.shutdown()
+
+    assert len(assertions) == 1
+    assert all(
+        flow.request.headers["authorization"] == "Bearer ya29.token-1" for flow in flows
+    )
+    header, claims, signature = assertions[0].split(".")
+    private_key.public_key().verify(
+        decode_base64url(signature),
+        f"{header}.{claims}".encode(),
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
+    decoded_claims = json.loads(decode_base64url(claims))
+    assert json.loads(decode_base64url(header))["kid"] == "key-123"
+    assert decoded_claims["iss"] == "wicek@project.iam.gserviceaccount.com"
+    assert decoded_claims["aud"] == token_uri
+    assert decoded_claims["scope"] == "https://www.googleapis.com/auth/spreadsheets"
 
 
 def test_replaces_the_home_assistant_websocket_token(secret):

@@ -56,11 +56,12 @@ Only hosts listed in the config are intercepted. Everything else is tunneled thr
 - `basic` – `Authorization: Basic` from `username` or `usernameFile`, plus `passwordFile`
 - `home-assistant` – `bearer`, plus the `access_token` in the WebSocket `auth` message
 - `enable-banking` – `Authorization: Bearer` with a short-lived RS256 JWT signed with `privateKeyFile`, its `kid` read from `applicationIdFile`
+- `google-service-account` – `Authorization: Bearer` with an access token for `scopes`, exchanged for an RS256 JWT signed with the service account JSON key in `keyFile` and cached until 5 minutes before it expires
 - `unifi` – logs in with `usernameFile`/`passwordFile`, keeps the `TOKEN` cookie and CSRF token, logs in again after a 401
 - `imap` – the broker answers the request itself as a read-only mail gateway for `server` (port 993), logging in with `usernameFile`/`passwordFile`. Endpoints: `GET /folders`, `/search` (`folder`, `from`, `to`, `subject`, `text`, `since`, `before`, `unseen`, `limit`) `/message` (`folder`, `uid`) and `/attachment` (`folder`, `uid`, `index`, raw bytes up to 25 MB). It opens folders with `EXAMINE` and fetches with `BODY.PEEK`, so it can't change the mailbox or mark messages as read. Use a made-up host such as `http://imap.broker`
 - `logins` – the broker answers the request itself with the logins in a 1Password vault, read with the `op` CLI and the service account token in `tokenFile`. Endpoints: `GET /list` (item ids, titles, domains, and placeholders, never values) and `/code?item=<id>` (digit sequences from the newest email sent by the item's domain in the last 10 minutes, read over IMAP from `mailServer` with `mailUsernameFile`/`mailPasswordFile`). Use a made-up host such as `http://logins.broker`
 
-Optional per host: `methods` (allowlist) and `insecureTls` (self-signed upstreams). Top-level `"blockUnlisted": true` rejects every host not in the list instead of tunneling it. Hosts may use a leading `*.` wildcard. The config is read from `BROKER_CONFIG` (default `/etc/broker/config.json`):
+Optional per host: `methods` (allowlist), `paths` (glob allowlist, matched without the query string; other paths get a 403) and `insecureTls` (self-signed upstreams). Top-level `"blockUnlisted": true` rejects every host not in the list instead of tunneling it. Hosts may use a leading `*.` wildcard. The config is read from `BROKER_CONFIG` (default `/etc/broker/config.json`):
 
 ```json
 {
