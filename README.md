@@ -44,7 +44,7 @@ Some data, like bank transactions, is both sensitive and partly written by third
 
 ## Deployment
 
-Runs on a single-node K3s cluster (Raspberry Pi 5). See [xxczaki/homelab](https://github.com/xxczaki/homelab) for the full cluster setup and [xxczaki/charts](https://github.com/xxczaki/charts) for the Helm chart.
+Runs on a single-node K3s cluster (Raspberry Pi 5). See [xxczaki/homelab](https://github.com/xxczaki/homelab) for the full cluster setup The Helm chart lives in [`deploy/chart`](deploy/chart), and every merge to `main` deploys it by pinning the commit in homelab.
 
 ### Credential broker
 

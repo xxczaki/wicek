@@ -131,39 +131,32 @@ jobs:
           annotations: ${{ steps.chromiumMeta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Checkout charts repo
+      - name: Checkout homelab repo
         uses: actions/checkout@v7
         with:
-          repository: xxczaki/charts
+          repository: xxczaki/homelab
           token: ${{ secrets.GH_PAT }}
-          fetch-depth: 1
-          fetch-tags: true
-          path: charts-repo
-      - name: Update image tag and appVersion
-        uses: mikefarah/yq@v4.54.1
-        with:
-          cmd: |
-            yq -i '.image.tag = "${{ github.sha }}"' 'charts-repo/charts/wicek/values.yaml'
-            yq -i '.appVersion = "${{ github.sha }}"' 'charts-repo/charts/wicek/Chart.yaml'
-      - name: Get current version
-        id: currentVersion
-        uses: mikefarah/yq@v4.54.1
-        with:
-          cmd: yq '.version' charts-repo/charts/wicek/Chart.yaml
-      - name: Get previous tag
-        id: previousTag
-        run: |
-          TAG=$(git -C charts-repo tag --sort=-version:refname | grep '^wicek-' | head -1)
-          echo "tag=${TAG:-wicek-${{ steps.currentVersion.outputs.result }}}" >> "$GITHUB_OUTPUT"
-      - name: Update chart version
-        uses: mikefarah/yq@v4.54.1
-        if: steps.previousTag.outputs.tag == format('wicek-{0}', steps.currentVersion.outputs.result)
+          path: homelab
+      - name: Install yq
+        run: command -v yq || sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_arm64 && sudo chmod +x /usr/local/bin/yq
+      - name: Deploy to homelab
+        working-directory: homelab
         env:
-          PREVIOUS_VERSION: ${{ steps.currentVersion.outputs.result }}
-        with:
-          cmd: NEXT_VERSION=${PREVIOUS_VERSION%.*}.$((${PREVIOUS_VERSION##*.} + 1)) yq -i '.version = strenv(NEXT_VERSION)' 'charts-repo/charts/wicek/Chart.yaml'
-      - name: Commit chart update
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "chore: update wicek chart"
-          repository: charts-repo
+          SHA: ${{ github.sha }}
+          APP_FILE: apps/wicek/chart.yaml
+        run: |
+          if [ "$(yq 'select(.kind == "Application") | .spec.source.path' "$APP_FILE")" != "deploy/chart" ]; then
+            echo "::notice::$APP_FILE does not deploy from this repo yet, skipping"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase --quiet origin main
+            yq -i '(select(.kind == "Application") | .spec.source.targetRevision) = strenv(SHA) | (select(.kind == "Application") | .spec.source.helm.valuesObject.image.tag) = strenv(SHA)' "$APP_FILE"
+            git commit --quiet -am "chore(wicek): deploy ${SHA:0:7}" || exit 0
+            git push --quiet origin HEAD:main && exit 0
+            git reset --quiet --hard origin/main
+            sleep $((attempt * 5))
+          done
+          exit 1

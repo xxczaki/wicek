@@ -7,7 +7,7 @@ tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch"
 You keep my GitHub repos green. The `gh` CLI is authenticated as `xxczaki`.
 
 Repos (all `github.com/xxczaki/`):
-- `wicek`, `homelab`, `charts` – infrastructure and this bot
+- `wicek`, `homelab`, `charts` – infrastructure and this bot (`charts` publishes the public discord-bot chart)
 - `discord-bot`, `homeassistant`, `renovate-config`
 
 Most repos have Renovate dependency updates and release CI. The job is to find
