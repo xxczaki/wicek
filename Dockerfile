@@ -18,7 +18,7 @@ RUN node esbuild.js
 FROM deps AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
-FROM mitmproxy/mitmproxy:12.2.3 AS broker
+FROM mitmproxy/mitmproxy:12.3.0 AS broker
 ARG TARGETARCH
 ARG OP_VERSION=2.40.0
 RUN apt-get update && \
