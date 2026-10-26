@@ -173,8 +173,8 @@ importers:
         specifier: 4.4.4
         version: 4.4.4
       chrome-devtools-mcp:
-        specifier: 1.11.0
-        version: 1.11.0
+        specifier: 1.12.0
+        version: 1.12.0
       discord.js:
         specifier: ^14.27.0
         version: 14.27.0
@@ -833,8 +833,8 @@ packages:
     resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
 
-  chrome-devtools-mcp@1.11.0:
-    resolution: {integrity: sha512-CytJ/5tnzrS+J/74be2P5aCOsS/mmGRHys/Si+IYC4ucrbnWAmES/dYdxGJjeUCECRcoFUilZAysdjlwqUjXIA==}
+  chrome-devtools-mcp@1.12.0:
+    resolution: {integrity: sha512-lAGpH0zXT1ZdaPefP1KK/MvxwihOlu7VGQ7p4wbhD9OhN17vUC4KWk/ImUYR9DE4s+7r4r0ySV4xr2OkTa7ZMA==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
     hasBin: true
     peerDependencies:
@@ -1888,7 +1888,7 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
 
-  chrome-devtools-mcp@1.11.0: {}
+  chrome-devtools-mcp@1.12.0: {}
 
   cjs-module-lexer@2.2.1: {}
 
