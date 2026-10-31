@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
     "esbuild-plugin-pino": "2.3.3",
     "pino-pretty": "^13.2.0",
