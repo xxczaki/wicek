@@ -1,4 +1,4 @@
-FROM node:24.22.1-alpine AS base
+FROM node:26.13.0-alpine AS base
 COPY --from=ghcr.io/jdx/mise:2026.10.3 /usr/local/bin/mise /usr/local/bin/mise
 ENV MISE_DATA_DIR=/opt/mise
 ENV MISE_GLOBAL_CONFIG_FILE=/app/mise.toml
