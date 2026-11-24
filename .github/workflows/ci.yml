@@ -131,11 +131,19 @@ jobs:
           annotations: ${{ steps.chromiumMeta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GITOPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+          repositories: homelab
+          permission-contents: write
       - name: Checkout homelab repo
         uses: actions/checkout@v7
         with:
           repository: xxczaki/homelab
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ steps.app-token.outputs.token }}
           path: homelab
       - name: Deploy to homelab
         working-directory: homelab
