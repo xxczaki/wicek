@@ -131,30 +131,44 @@ jobs:
           annotations: ${{ steps.chromiumMeta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GITOPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+          repositories: homelab
+          permission-contents: write
       - name: Checkout homelab repo
         uses: actions/checkout@v7
         with:
           repository: xxczaki/homelab
-          token: ${{ secrets.GH_PAT }}
+          persist-credentials: false
           path: homelab
-      - name: Deploy to homelab
+      - name: Check deploy source
+        id: source
         working-directory: homelab
         env:
-          SHA: ${{ github.sha }}
           APP_FILE: apps/wicek/chart.yaml
         run: |
           if [ "$(yq 'select(.kind == "Application") | .spec.source.path' "$APP_FILE")" != "deploy/chart" ]; then
             echo "::notice::$APP_FILE does not deploy from this repo yet, skipping"
-            exit 0
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for attempt in 1 2 3 4 5; do
-            git pull --rebase --quiet origin main
+      - name: Deploy to homelab
+        if: steps.source.outputs.enabled == 'true'
+        uses: xxczaki/actions/commit-via-api@2055f70b487aac8d86315ce4eb26028931f60cd6 # v1.0.0
+        env:
+          SHA: ${{ github.sha }}
+          APP_FILE: apps/wicek/chart.yaml
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: xxczaki/homelab
+          branch: main
+          working-directory: homelab
+          message: "chore(wicek): deploy ${{ github.sha }}"
+          apply: |
             yq -i '(select(.kind == "Application") | .spec.source.targetRevision) = strenv(SHA) | (select(.kind == "Application") | .spec.source.helm.valuesObject.image.tag) = strenv(SHA)' "$APP_FILE"
-            git commit --quiet -am "chore(wicek): deploy ${SHA:0:7}" || exit 0
-            git push --quiet origin HEAD:main && exit 0
-            git reset --quiet --hard origin/main
-            sleep $((attempt * 5))
-          done
-          exit 1
+            git add "$APP_FILE"
