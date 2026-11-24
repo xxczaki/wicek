@@ -291,6 +291,78 @@ def test_google_service_account_exchanges_a_signed_jwt_and_caches_the_token(secr
     assert decoded_claims["scope"] == "https://www.googleapis.com/auth/spreadsheets"
 
 
+def test_github_app_mints_one_installation_token_for_bearer_and_basic_hosts(secret):
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.TraditionalOpenSSL,
+        serialization.NoEncryption(),
+    ).decode()
+    requests = []
+
+    class InstallationTokenEndpoint(BaseHTTPRequestHandler):
+        def do_POST(self):
+            requests.append((self.path, self.headers["authorization"]))
+            payload = json.dumps(
+                {
+                    "token": f"ghs_token-{len(requests)}",
+                    "expires_at": "2999-01-01T00:00:00Z",
+                }
+            ).encode()
+            self.send_response(201)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), InstallationTokenEndpoint)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    auth = {
+        "type": "github-app",
+        "clientIdFile": secret("client-id", "Iv23liExample"),
+        "installationIdFile": secret("installation-id", "4242"),
+        "privateKeyFile": secret("private-key", pem),
+        "apiUrl": f"http://127.0.0.1:{server.server_port}",
+    }
+    broker = CredentialBroker(
+        [
+            Rule(host="api.github.com", auth=auth),
+            Rule(host="github.com", auth={**auth, "scheme": "basic"}),
+        ]
+    )
+
+    try:
+        api_flow = make_flow(
+            "https://api.github.com/repos/xxczaki/wicek",
+            headers={"authorization": "Bearer injected-by-broker"},
+        )
+        git_flow = make_flow("https://github.com/xxczaki/wicek.git/info/refs")
+        run(broker, "request", api_flow)
+        run(broker, "request", git_flow)
+    finally:
+        server.shutdown()
+
+    assert len(requests) == 1
+    path, authorization = requests[0]
+    assert path == "/app/installations/4242/access_tokens"
+    assert api_flow.request.headers["authorization"] == "Bearer ghs_token-1"
+    expected_basic = base64.b64encode(b"x-access-token:ghs_token-1").decode()
+    assert git_flow.request.headers["authorization"] == f"Basic {expected_basic}"
+    header, claims, signature = authorization.removeprefix("Bearer ").split(".")
+    private_key.public_key().verify(
+        decode_base64url(signature),
+        f"{header}.{claims}".encode(),
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
+    decoded_claims = json.loads(decode_base64url(claims))
+    assert decoded_claims["iss"] == "Iv23liExample"
+    assert decoded_claims["exp"] - decoded_claims["iat"] <= 600
+
+
 def test_replaces_the_home_assistant_websocket_token(secret):
     broker = CredentialBroker(
         [
