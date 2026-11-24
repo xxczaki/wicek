@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -25,6 +26,10 @@ ENABLE_BANKING_TOKEN_LIFETIME_SECONDS = 3600
 GOOGLE_TOKEN_LIFETIME_SECONDS = 3600
 GOOGLE_TOKEN_REFRESH_MARGIN_SECONDS = 300
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
+GITHUB_API_URL = "https://api.github.com"
+GITHUB_APP_JWT_LIFETIME_SECONDS = 540
+GITHUB_APP_CLOCK_SKEW_SECONDS = 60
+GITHUB_TOKEN_REFRESH_MARGIN_SECONDS = 300
 
 STRIPPED_REQUEST_HEADERS = (
     "authorization",
@@ -44,6 +49,12 @@ class UnifiSession:
 
 @dataclass
 class GoogleToken:
+    value: str
+    expires_at: float
+
+
+@dataclass
+class GitHubAppToken:
     value: str
     expires_at: float
 
@@ -72,6 +83,7 @@ class CredentialBroker:
         self.rules = rules
         self.block_unlisted = block_unlisted
         self.login_lock = asyncio.Lock()
+        self.github_app_tokens: dict[tuple[str, ...], GitHubAppToken] = {}
 
     @classmethod
     def from_file(cls, path: str) -> "CredentialBroker":
@@ -234,6 +246,12 @@ class CredentialBroker:
                         auth["scopes"],
                     )
             return {"authorization": f"Bearer {rule.google_token.value}"}
+        if auth["type"] == "github-app":
+            token = await self.github_app_token(auth)
+            if auth.get("scheme") == "basic":
+                encoded = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+                return {"authorization": f"Basic {encoded}"}
+            return {"authorization": f"Bearer {token}"}
         if auth["type"] == "unifi":
             async with self.login_lock:
                 if not rule.unifi_session:
@@ -246,6 +264,29 @@ class CredentialBroker:
                 "x-csrf-token": rule.unifi_session.csrf_token,
             }
         raise ValueError(f"Unknown auth type {auth['type']}")
+
+    async def github_app_token(self, auth: dict) -> str:
+        api_url = auth.get("apiUrl", GITHUB_API_URL)
+        cache_key = (
+            auth["clientIdFile"],
+            auth["installationIdFile"],
+            auth["privateKeyFile"],
+            api_url,
+        )
+        async with self.login_lock:
+            token = self.github_app_tokens.get(cache_key)
+            if not token or token.expires_at - time.time() < (
+                GITHUB_TOKEN_REFRESH_MARGIN_SECONDS
+            ):
+                token = await asyncio.to_thread(
+                    fetch_github_app_token,
+                    read_secret(auth["clientIdFile"]),
+                    read_secret(auth["installationIdFile"]),
+                    read_secret(auth["privateKeyFile"]),
+                    api_url,
+                )
+                self.github_app_tokens[cache_key] = token
+        return token.value
 
 
 def not_allowed(host: str) -> http.Response:
@@ -315,6 +356,36 @@ def fetch_google_token(key_json: str, scopes: list[str]) -> GoogleToken:
         value=payload["access_token"],
         expires_at=issued_at + payload.get("expires_in", GOOGLE_TOKEN_LIFETIME_SECONDS),
     )
+
+
+def fetch_github_app_token(
+    client_id: str, installation_id: str, private_key_pem: str, api_url: str
+) -> GitHubAppToken:
+    issued_at = int(time.time()) - GITHUB_APP_CLOCK_SKEW_SECONDS
+    header = {"typ": "JWT", "alg": "RS256"}
+    claims = {
+        "iss": client_id,
+        "iat": issued_at,
+        "exp": issued_at + GITHUB_APP_JWT_LIFETIME_SECONDS,
+    }
+    signing_input = f"{base64url_json(header)}.{base64url_json(claims)}"
+    signature = load_private_key(private_key_pem).sign(
+        signing_input.encode(), padding.PKCS1v15(), hashes.SHA256()
+    )
+    request = urllib.request.Request(
+        f"{api_url}/app/installations/{installation_id}/access_tokens",
+        data=b"",
+        headers={
+            "accept": "application/vnd.github+json",
+            "authorization": f"Bearer {signing_input}.{base64url(signature)}",
+            "x-github-api-version": "2022-11-28",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=LOGIN_TIMEOUT_SECONDS) as response:
+        payload = json.load(response)
+    expires_at = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
+    return GitHubAppToken(value=payload["token"], expires_at=expires_at.timestamp())
 
 
 def load_private_key(pem: str):
