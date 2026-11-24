@@ -143,26 +143,26 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: xxczaki/homelab
-          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           path: homelab
       - name: Deploy to homelab
         working-directory: homelab
         env:
           SHA: ${{ github.sha }}
           APP_FILE: apps/wicek/chart.yaml
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           if [ "$(yq 'select(.kind == "Application") | .spec.source.path' "$APP_FILE")" != "deploy/chart" ]; then
             echo "::notice::$APP_FILE does not deploy from this repo yet, skipping"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for attempt in 1 2 3 4 5; do
-            git pull --rebase --quiet origin main
-            yq -i '(select(.kind == "Application") | .spec.source.targetRevision) = strenv(SHA) | (select(.kind == "Application") | .spec.source.helm.valuesObject.image.tag) = strenv(SHA)' "$APP_FILE"
-            git commit --quiet -am "chore(wicek): deploy ${SHA:0:7}" || exit 0
-            git push --quiet origin HEAD:main && exit 0
+            git fetch --quiet origin main
             git reset --quiet --hard origin/main
+            yq -i '(select(.kind == "Application") | .spec.source.targetRevision) = strenv(SHA) | (select(.kind == "Application") | .spec.source.helm.valuesObject.image.tag) = strenv(SHA)' "$APP_FILE"
+            git add "$APP_FILE"
+            git diff --cached --quiet && exit 0
+            "$GITHUB_WORKSPACE/.github/scripts/commit-via-api.sh" xxczaki/homelab main "chore(wicek): deploy ${SHA:0:7}" && exit 0
             sleep $((attempt * 5))
           done
           exit 1
