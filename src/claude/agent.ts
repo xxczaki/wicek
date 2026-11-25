@@ -5,6 +5,7 @@ import {
 	type SDKMessage,
 } from '@anthropic-ai/claude-agent-sdk';
 import logger from '../utils/logger.ts';
+import { createWorkBrowserServer } from './devtools.ts';
 import { type AgentEvent, mapSdkMessage } from './events.ts';
 import type { AgentInbox } from './inbox.ts';
 import {
@@ -61,6 +62,9 @@ export async function* streamAgent(
 		readerAnswers.push({ type: 'reader_answer', ...answer });
 
 	for (let attempt = 0; attempt < 2; attempt++) {
+		const workBrowser = options.withoutMcp
+			? undefined
+			: createWorkBrowserServer();
 		const response = query({
 			prompt: options.inbox
 				? options.inbox.messages(options.prompt)
@@ -72,6 +76,9 @@ export async function* streamAgent(
 					? undefined
 					: {
 							...HOME_ASSISTANT_MCP,
+							...(workBrowser && {
+								[workBrowser.config.name]: workBrowser.config,
+							}),
 							...createMailMcpServers(),
 							...createLoginsMcpServers(),
 							...createReaderMcpServers(
@@ -120,6 +127,8 @@ export async function* streamAgent(
 			logger.error({ error }, 'Agent query failed');
 			yield { type: 'error', message };
 			return;
+		} finally {
+			await workBrowser?.close();
 		}
 	}
 }

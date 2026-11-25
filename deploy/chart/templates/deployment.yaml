@@ -271,6 +271,9 @@ spec:
         {{- if .Values.chromium.enabled }}
         - name: chromium
           image: "{{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag | default .Values.image.tag | default .Chart.AppVersion }}"
+          env:
+            - name: CHROMIUM_IDLE_SECONDS
+              value: {{ .Values.chromium.idleSeconds | quote }}
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

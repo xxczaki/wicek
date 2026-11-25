@@ -173,9 +173,13 @@ chromium:
     # -- Chromium image tag (defaults to image.tag)
     # @section -- Browser
     tag: ""
+  # -- Chromium starts on the first DevTools connection and stops after this many seconds
+  # with none open. Applies to both the sidecar and the account browser.
+  # @section -- Browser
+  idleSeconds: 300
   resources:
     requests:
-      memory: "512Mi"
+      memory: "128Mi"
       cpu: "100m"
     limits:
       memory: "1536Mi"
@@ -189,7 +193,7 @@ accountBrowser:
   enabled: false
   resources:
     requests:
-      memory: "512Mi"
+      memory: "128Mi"
       cpu: "100m"
     limits:
       memory: "1536Mi"

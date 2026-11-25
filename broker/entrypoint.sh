@@ -20,16 +20,13 @@ if [ -n "${SSH_AUTH_SOCK:-}" ]; then
 fi
 
 if [ -n "${BROKER_BROWSER_PORT:-}" ]; then
-	while true; do
-		mitmdump \
-			--listen-host 127.0.0.1 \
-			--listen-port "$BROKER_BROWSER_PORT" \
-			--set confdir="$CONFDIR" \
-			--set flow_detail=0 \
-			--set block_global=false \
-			--scripts /app/browser.py || true
-		sleep 1
-	done &
+	exec mitmdump \
+		--mode "regular@${BROKER_LISTEN_HOST:-127.0.0.1}:${BROKER_PORT:-3128}" \
+		--mode "regular@127.0.0.1:${BROKER_BROWSER_PORT}" \
+		--set confdir="$CONFDIR" \
+		--set flow_detail=0 \
+		--set block_global=false \
+		--scripts /app/account.py
 fi
 
 exec mitmdump \

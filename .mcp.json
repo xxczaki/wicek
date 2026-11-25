@@ -1,11 +1,8 @@
 {
   "mcpServers": {
     "context7": {
-      "command": "./node_modules/.bin/context7-mcp"
-    },
-    "chrome-devtools": {
-      "command": "./node_modules/.bin/chrome-devtools-mcp",
-      "args": ["--browser-url=http://localhost:9222"]
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
     }
   }
 }

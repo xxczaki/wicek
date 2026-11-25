@@ -29,7 +29,7 @@ RUN python3 -m zipfile -e /tmp/op.zip /tmp/op && \
     install -m 755 /tmp/op/op /usr/local/bin/op && \
     rm -rf /tmp/op /tmp/op.zip
 WORKDIR /app
-COPY broker/credentials.py broker/mail.py broker/logins.py broker/browser.py broker/spki.py broker/entrypoint.sh ./
+COPY broker/account.py broker/credentials.py broker/mail.py broker/logins.py broker/browser.py broker/spki.py broker/entrypoint.sh ./
 ENV PYTHONUNBUFFERED=1
 USER 1000
 ENTRYPOINT ["/app/entrypoint.sh"]
@@ -40,11 +40,15 @@ RUN apt-get update && \
       ca-certificates \
       chromium \
       fonts-liberation \
+      python3 \
+      tini \
       xvfb && \
     rm -rf /var/lib/apt/lists/* && \
     useradd --uid 1000 --create-home --shell /usr/sbin/nologin chromium && \
     mkdir -p /tmp/.X11-unix && \
     chmod 1777 /tmp/.X11-unix
+COPY --chmod=755 chromium/launch.sh /usr/local/bin/chromium-launch
+COPY chromium/lazy.py /usr/local/lib/chromium-lazy.py
 COPY --chmod=755 chromium/run.sh /usr/local/bin/chromium-run
 COPY chromium/extension/ /opt/wicek-extension/
 USER 1000
