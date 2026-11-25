@@ -8,8 +8,9 @@ const signal = new AbortController().signal;
 
 const MAIN_THREAD = {};
 const ACCOUNT_AGENT = { agent_id: 'agent-1', agent_type: ACCOUNT_AGENT_NAME };
-const NAVIGATE = 'mcp__chrome-devtools__navigate_page';
-const FILL = 'mcp__chrome-devtools__fill';
+const NAVIGATE = 'mcp__account-browser__navigate_page';
+const FILL = 'mcp__account-browser__fill';
+const WORK_FILL = 'mcp__chrome-devtools__fill';
 
 async function decide(
 	toolName: string,
@@ -55,7 +56,8 @@ test('limits the account-browser agent to browser tools', async () => {
 	for (const toolName of [
 		'Bash',
 		'WebFetch',
-		'mcp__chrome-devtools__evaluate_script',
+		'mcp__account-browser__evaluate_script',
+		'mcp__chrome-devtools__navigate_page',
 	]) {
 		assert.equal(await decide(toolName, {}, ACCOUNT_AGENT), 'deny');
 	}
@@ -66,6 +68,15 @@ test('keeps logins away from other agents', async () => {
 
 	assert.equal(await decide(FILL, input, ACCOUNT_AGENT), undefined);
 	assert.equal(await decide(FILL, input, MAIN_THREAD), 'deny');
+	assert.equal(await decide(WORK_FILL, input, MAIN_THREAD), 'deny');
+	assert.equal(
+		await decide(WORK_FILL, { uid: '1', value: 'hello' }, MAIN_THREAD),
+		undefined,
+	);
+	assert.equal(
+		await decide(NAVIGATE, { url: 'https://example.com/' }, MAIN_THREAD),
+		'deny',
+	);
 	assert.equal(
 		await decide('Edit', { new_string: input.value }, MAIN_THREAD),
 		undefined,

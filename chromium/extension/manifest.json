@@ -1,0 +1,17 @@
+{
+	"manifest_version": 3,
+	"name": "Wicek login fill",
+	"version": "1.0.0",
+	"description": "Replaces Wicek login placeholders with the real values inside the page, before the page encrypts or sends them.",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqB7AEJyL7Dn+BM5wB0F5eNk3JWnw1Z8cJ0w/QXkg73L9yPlrzsAOxF44VTSLMc6oxJ8UH01n8ZMj17UoftyQUlfn3c75o5eCFZNqeeb49dWVWYKN5YK28IXqeitWAu3dGSG6Vfbj7nAxOJuBm5o/mbQLcUtjyTi78gxBGm03VV1T1IfmCDX1Zu1HKBuf5nd0SPkf8goYHetPJoh54o9/NxfFyzvQMH2kBUK4mJe4nRjOZ2be3KZIzAcBRw4rVeUkTcq/9ubDmogbkNW8MMtBUBI08ytexGHMYk+FrhuTM/AnACRGW5JLFAxvcSXFw7S9V1OH2TePHf9blVTe2tn4UQIDAQAB",
+	"background": { "service_worker": "background.js" },
+	"content_scripts": [
+		{
+			"matches": ["https://*/*"],
+			"js": ["content.js"],
+			"all_frames": true,
+			"run_at": "document_start"
+		}
+	],
+	"host_permissions": ["http://logins.broker/*"]
+}

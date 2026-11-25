@@ -18,6 +18,9 @@ PLACEHOLDER = re.compile(
     rb"WICEK_LOGIN_([a-z0-9]+)_(USERNAME|PASSWORD)(?:(?:@|%40)wicek\.invalid)?",
     re.IGNORECASE,
 )
+FULL_PLACEHOLDER = re.compile(
+    r"WICEK_LOGIN_([a-z0-9]+)_(USERNAME@wicek\.invalid|PASSWORD)", re.IGNORECASE
+)
 ITEM_ID = re.compile(r"[a-z0-9]+")
 CODE = re.compile(r"(?<!\d)\d{4,8}(?!\d)")
 OP_TIMEOUT_SECONDS = 20
@@ -80,6 +83,28 @@ def fill_placeholders(request: http.Request, auth: dict):
         ),
         body,
     )
+
+
+def fill_value(auth: dict, placeholder_text: str, page_url: str) -> str:
+    match = FULL_PLACEHOLDER.fullmatch(placeholder_text.strip())
+    if not match:
+        raise LoginError(400, "Not a login placeholder")
+    page = urlsplit(page_url)
+    if page.scheme != "https" or not page.hostname:
+        raise LoginError(403, "Logins are only filled on HTTPS pages")
+
+    item_id = match[1].lower()
+    purpose = "PASSWORD" if match[2].upper() == "PASSWORD" else "USERNAME"
+    item = run_op(auth, "item", "get", item_id)
+    if not is_allowed(item_domains(item), page.hostname):
+        logger.warning(f"login {item_id} not filled in page on {page.hostname}")
+        raise LoginError(403, "The page is not on the login's domains")
+
+    value = field_value(item, purpose)
+    if value is None:
+        raise LoginError(404, f"The login has no {purpose.lower()}")
+    logger.info(f"login {item_id} {purpose.lower()} filled in page on {page.hostname}")
+    return value
 
 
 def list_logins(auth: dict) -> list[dict]:

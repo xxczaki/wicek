@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { get, type IncomingHttpHeaders } from 'node:http';
+import { get, type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
 import { basename, join, resolve } from 'node:path';
 import {
 	type AgentDefinition,
@@ -255,24 +255,33 @@ function unreachable(error: unknown) {
 // that the broker answers itself.
 export function getThroughProxy(
 	url: URL,
+	proxy?: URL,
 ): Promise<{ status: number; headers: IncomingHttpHeaders; body: Buffer }> {
 	return new Promise((resolve, reject) => {
-		const request = get(
-			url,
-			{ timeout: MAIL_REQUEST_TIMEOUT_MS },
-			(response) => {
-				const chunks: Buffer[] = [];
-				response.on('data', (chunk: Buffer) => chunks.push(chunk));
-				response.on('error', reject);
-				response.on('end', () =>
-					resolve({
-						status: response.statusCode ?? 0,
-						headers: response.headers,
-						body: Buffer.concat(chunks),
-					}),
-				);
-			},
-		);
+		const onResponse = (response: IncomingMessage) => {
+			const chunks: Buffer[] = [];
+			response.on('data', (chunk: Buffer) => chunks.push(chunk));
+			response.on('error', reject);
+			response.on('end', () =>
+				resolve({
+					status: response.statusCode ?? 0,
+					headers: response.headers,
+					body: Buffer.concat(chunks),
+				}),
+			);
+		};
+		const request = proxy
+			? get(
+					{
+						host: proxy.hostname,
+						port: proxy.port,
+						path: url.href,
+						headers: { host: url.host },
+						timeout: MAIL_REQUEST_TIMEOUT_MS,
+					},
+					onResponse,
+				)
+			: get(url, { timeout: MAIL_REQUEST_TIMEOUT_MS }, onResponse);
 		request.on('timeout', () => request.destroy(new Error('timed out')));
 		request.on('error', reject);
 	});

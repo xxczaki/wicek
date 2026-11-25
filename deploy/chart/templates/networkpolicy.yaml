@@ -60,6 +60,18 @@ spec:
         - port: 8080
           protocol: TCP
     {{- end }}
+    {{- if .Values.accountBrowser.enabled }}
+    # Account browser pod (MCP server and login gateway)
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "wicek.browserSelectorLabels" . | nindent 14 }}
+      ports:
+        - port: {{ .Values.accountBrowser.mcpPort }}
+          protocol: TCP
+        - port: {{ .Values.accountBrowser.gatewayPort }}
+          protocol: TCP
+    {{- end }}
     {{- if .Values.telemetry.enabled }}
     # OTLP telemetry receiver
     - to:
