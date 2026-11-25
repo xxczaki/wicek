@@ -6,7 +6,7 @@ const esbuildPluginPino = require('esbuild-plugin-pino');
 
 /** @type {import('esbuild').BuildOptions} */
 const buildOptions = {
-	entryPoints: ['src/index.ts', 'src/reader.ts'],
+	entryPoints: ['src/index.ts', 'src/reader.ts', 'src/browser.ts'],
 	bundle: true,
 	platform: 'node',
 	format: 'esm',
@@ -14,6 +14,7 @@ const buildOptions = {
 	external: [
 		'discord.js',
 		'@anthropic-ai/claude-agent-sdk',
+		'@modelcontextprotocol/sdk',
 		'pino',
 		'node-cron',
 	],

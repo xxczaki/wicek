@@ -65,10 +65,6 @@ spec:
               value: /etc/broker/config.json
             - name: BROKER_PORT
               value: "{{ .Values.broker.port }}"
-            {{- if .Values.chromium.enabled }}
-            - name: BROKER_BROWSER_PORT
-              value: "{{ .Values.broker.browserPort }}"
-            {{- end }}
             {{- if .Values.broker.sshKeys }}
             - name: SSH_AUTH_SOCK
               value: /run/ssh-agent/agent.sock
@@ -154,6 +150,12 @@ spec:
               value: {{ include "wicek.version" . | quote }}
             - name: WEBHOOK_PORT
               value: "{{ .Values.webhooks.port }}"
+            {{- if .Values.accountBrowser.enabled }}
+            - name: ACCOUNT_BROWSER_MCP_URL
+              value: "http://{{ include "wicek.browserHost" . }}:{{ .Values.accountBrowser.mcpPort }}/mcp"
+            - name: LOGINS_GATEWAY_PROXY
+              value: "http://{{ include "wicek.browserHost" . }}:{{ .Values.accountBrowser.gatewayPort }}"
+            {{- end }}
             {{- if .Values.readers }}
             - name: READERS
               value: {{ include "wicek.readers" . | quote }}
@@ -168,7 +170,11 @@ spec:
             {{- if .Values.telemetry.enabled }}
             {{- $telemetryHosts = append $telemetryHosts (splitList ":" (urlParse .Values.telemetry.endpoint).host | first) }}
             {{- end }}
-            {{- $noProxy := join "," (concat (list "localhost" "127.0.0.1") .Values.broker.noProxy $readerHosts $telemetryHosts) }}
+            {{- $browserHosts := list }}
+            {{- if .Values.accountBrowser.enabled }}
+            {{- $browserHosts = append $browserHosts (include "wicek.browserHost" .) }}
+            {{- end }}
+            {{- $noProxy := join "," (concat (list "localhost" "127.0.0.1") .Values.broker.noProxy $readerHosts $telemetryHosts $browserHosts) }}
             {{- range $name := list "HTTP_PROXY" "http_proxy" "HTTPS_PROXY" "https_proxy" }}
             - name: {{ $name }}
               value: {{ $proxy | quote }}
@@ -265,16 +271,6 @@ spec:
         {{- if .Values.chromium.enabled }}
         - name: chromium
           image: "{{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag | default .Values.image.tag | default .Chart.AppVersion }}"
-          {{- if .Values.broker.enabled }}
-          command:
-            - sh
-            - -c
-            - exec /usr/local/bin/chromium-run --proxy-server=127.0.0.1:{{ .Values.broker.browserPort }} --ignore-certificate-errors-spki-list="$(cat /run/broker-ca/spki)"
-          volumeMounts:
-            - name: broker-ca
-              mountPath: /run/broker-ca
-              readOnly: true
-          {{- end }}
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

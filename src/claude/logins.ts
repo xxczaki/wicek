@@ -16,8 +16,12 @@ const LOGINS_SERVER_NAME = 'logins';
 const LOGINS_TOOL_PREFIX = `mcp__${LOGINS_SERVER_NAME}__`;
 const LOGINS_GATEWAY_HOST = 'logins.broker';
 const LOGINS_GATEWAY_URL = `http://${LOGINS_GATEWAY_HOST}`;
+const LOGINS_GATEWAY_PROXY = process.env.LOGINS_GATEWAY_PROXY;
 const ACCOUNT_AGENT_MAX_TURNS = 40;
-const BROWSER_TOOL_PREFIX = 'mcp__chrome-devtools__';
+const ACCOUNT_BROWSER_SERVER_NAME = 'account-browser';
+const ACCOUNT_BROWSER_MCP_URL = process.env.ACCOUNT_BROWSER_MCP_URL;
+const BROWSER_TOOL_PREFIX = `mcp__${ACCOUNT_BROWSER_SERVER_NAME}__`;
+const WORK_BROWSER_TOOL_PREFIX = 'mcp__chrome-devtools__';
 const SUBAGENT_HANDBACK_TOOL = 'SubagentHandback';
 const PLACEHOLDER_PREFIX = 'WICEK_LOGIN_';
 const READ_ONLY = { annotations: { readOnlyHint: true } };
@@ -69,7 +73,7 @@ const ACCOUNT_AGENT_TOOLS = [
 const ACCOUNT_AGENT_PROMPT = `You use websites logged in as the user and report back to the agent that delegated to you. You have browser tools and two login tools, nothing else.
 
 How to log in:
-- Start with list_logins. It names each account's domains and the placeholders to type as the username and password. The real values are swapped in when the form is sent, so the page keeps showing the placeholder – that is expected. Never ask for or try to find the real values.
+- Start with list_logins. It names each account's domains and the placeholders to type as the username and password. A browser extension replaces them with the real values inside the page a moment after you type them, so a username field may then show the real value. Never ask for, read back, or repeat the real values.
 - Check whether you're already logged in before logging in.
 - If the site emails a code, wait a few seconds after it says the code was sent, then call get_login_code. Retry once if it returns no codes.
 - If a login needs something else (an SMS or app code, a passkey, a CAPTCHA), stop and report what it asks for.
@@ -102,6 +106,16 @@ export const ACCOUNT_AGENTS: Record<string, AgentDefinition> = {
 		prompt: ACCOUNT_AGENT_PROMPT,
 		omitClaudeMd: true,
 		maxTurns: ACCOUNT_AGENT_MAX_TURNS,
+		mcpServers: ACCOUNT_BROWSER_MCP_URL
+			? [
+					{
+						[ACCOUNT_BROWSER_SERVER_NAME]: {
+							type: 'http',
+							url: ACCOUNT_BROWSER_MCP_URL,
+						},
+					},
+				]
+			: [],
 	},
 };
 
@@ -117,10 +131,15 @@ async function guardAccountAccess(input: HookInput): Promise<HookJSONOutput> {
 		Boolean(input.agent_id) && input.agent_type === ACCOUNT_AGENT_NAME;
 
 	if (!isAccountAgent) {
-		if (input.tool_name.startsWith(LOGINS_TOOL_PREFIX)) {
-			return deny(`Logins are only usable by the ${ACCOUNT_AGENT_NAME} agent`);
+		if (
+			input.tool_name.startsWith(LOGINS_TOOL_PREFIX) ||
+			input.tool_name.startsWith(BROWSER_TOOL_PREFIX)
+		) {
+			return deny(
+				`Logins and the account browser are only usable by the ${ACCOUNT_AGENT_NAME} agent`,
+			);
 		}
-		const isBrowserTool = input.tool_name.startsWith(BROWSER_TOOL_PREFIX);
+		const isBrowserTool = input.tool_name.startsWith(WORK_BROWSER_TOOL_PREFIX);
 		if (isBrowserTool && mentions(input.tool_input, PLACEHOLDER_PREFIX)) {
 			return deny(`Logins go through the ${ACCOUNT_AGENT_NAME} agent`);
 		}
@@ -162,7 +181,10 @@ async function requestGateway(path: string, params: Record<string, string>) {
 		url.searchParams.set(name, value);
 	}
 	try {
-		const { status, body } = await getThroughProxy(url);
+		const { status, body } = await getThroughProxy(
+			url,
+			LOGINS_GATEWAY_PROXY ? new URL(LOGINS_GATEWAY_PROXY) : undefined,
+		);
 		return textResult(body.toString('utf8'), status !== 200);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

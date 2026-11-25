@@ -18,6 +18,7 @@ import {
 	READER_HOOKS,
 	type ReaderAnswer,
 } from './readers.ts';
+import { SCREENSHOT_HOOKS } from './screenshots.ts';
 import { agentEnv, REDACTION_HOOKS } from './secrets.ts';
 
 export type { AgentEvent } from './events.ts';
@@ -46,6 +47,7 @@ const AGENT_HOOKS = mergeHooks(
 	MAIL_HOOKS,
 	READER_HOOKS,
 	ACCOUNT_HOOKS,
+	SCREENSHOT_HOOKS,
 );
 
 export async function* streamAgent(

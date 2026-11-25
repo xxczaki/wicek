@@ -86,3 +86,25 @@ Short commit SHA of the deployed image, shown as the Wicek version
 {{- define "wicek.version" -}}
 {{- .Values.image.tag | default .Chart.AppVersion | trunc 7 }}
 {{- end }}
+
+{{/*
+Name of the account browser pod's resources
+*/}}
+{{- define "wicek.browserName" -}}
+{{- printf "%s-account-browser" (include "wicek.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Account browser pod selector labels, kept apart from the agent pod's selector
+*/}}
+{{- define "wicek.browserSelectorLabels" -}}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: account-browser
+{{- end }}
+
+{{/*
+In-cluster host of the account browser pod's Service
+*/}}
+{{- define "wicek.browserHost" -}}
+{{- printf "%s.%s.svc.cluster.local" (include "wicek.browserName" .) .Release.Namespace }}
+{{- end }}

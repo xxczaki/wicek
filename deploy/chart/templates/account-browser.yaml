@@ -1,0 +1,227 @@
+{{- if .Values.accountBrowser.enabled }}
+{{- $name := include "wicek.browserName" . }}
+{{- $loginsHost := dict "host" "logins.broker" "methods" (list "GET") "auth" .Values.accountBrowser.logins }}
+{{- $brokerConfig := dict "blockUnlisted" true "hosts" (ternary (list $loginsHost) (list) (not (empty .Values.accountBrowser.logins))) | toJson }}
+{{- $brokerImage := printf "%s:%s" .Values.broker.image.repository (.Values.broker.image.tag | default .Values.image.tag | default .Chart.AppVersion) }}
+{{- $securityContext := dict "runAsNonRoot" true "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) "seccompProfile" (dict "type" "RuntimeDefault") }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wicek.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-browser
+data:
+  config.json: {{ $brokerConfig | quote }}
+---
+# The account browser: Chromium, its login broker, and the MCP server that drives it. Wicek only reaches the MCP
+# server and the login gateway, never Chromium's debugging port, so filled-in logins stay here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wicek.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-browser
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "wicek.browserSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "wicek.browserSelectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/broker-config: {{ $brokerConfig | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: broker
+          image: {{ $brokerImage | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          restartPolicy: Always
+          securityContext:
+            {{- toYaml $securityContext | nindent 12 }}
+          env:
+            - name: BROKER_CONFIG
+              value: /etc/broker/config.json
+            - name: BROKER_LISTEN_HOST
+              value: 0.0.0.0
+            - name: BROKER_PORT
+              value: {{ .Values.accountBrowser.gatewayPort | quote }}
+            - name: BROKER_BROWSER_PORT
+              value: {{ .Values.broker.browserPort | quote }}
+          ports:
+            - name: gateway
+              containerPort: {{ .Values.accountBrowser.gatewayPort }}
+          startupProbe:
+            tcpSocket:
+              port: gateway
+            periodSeconds: 1
+            failureThreshold: 60
+          volumeMounts:
+            - name: broker-config
+              mountPath: /etc/broker
+              readOnly: true
+            - name: broker-state
+              mountPath: /run/broker-state
+            - name: broker-ca
+              mountPath: /run/broker-ca
+            {{- range .Values.accountBrowser.secrets }}
+            - name: secret-{{ .name }}
+              mountPath: /run/broker/{{ .name }}
+              readOnly: true
+            {{- end }}
+          {{- with .Values.broker.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      containers:
+        - name: chromium
+          image: "{{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag | default .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - exec /usr/local/bin/chromium-run --proxy-server=127.0.0.1:{{ .Values.broker.browserPort }} --ignore-certificate-errors-spki-list="$(cat /run/broker-ca/spki)" --disable-extensions-except=/opt/wicek-extension --load-extension=/opt/wicek-extension
+          securityContext:
+            {{- toYaml $securityContext | nindent 12 }}
+          volumeMounts:
+            - name: broker-ca
+              mountPath: /run/broker-ca
+              readOnly: true
+          {{- with .Values.accountBrowser.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        - name: mcp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "dist/browser.js"]
+          env:
+            - name: BROWSER_MCP_PORT
+              value: {{ .Values.accountBrowser.mcpPort | quote }}
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: mcp
+              containerPort: {{ .Values.accountBrowser.mcpPort }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: mcp
+            periodSeconds: 10
+          securityContext:
+            {{- toYaml $securityContext | nindent 12 }}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: mcp-tmp
+              mountPath: /tmp
+          {{- with .Values.accountBrowser.mcpResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: broker-config
+          configMap:
+            name: {{ $name }}
+        - name: broker-state
+          emptyDir:
+            medium: Memory
+        - name: broker-ca
+          emptyDir: {}
+        - name: mcp-tmp
+          emptyDir: {}
+        {{- range .Values.accountBrowser.secrets }}
+        - name: secret-{{ .name }}
+          secret:
+            secretName: {{ .secretName }}
+            defaultMode: 0440
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wicek.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-browser
+spec:
+  selector:
+    {{- include "wicek.browserSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: mcp
+      port: {{ .Values.accountBrowser.mcpPort }}
+      targetPort: mcp
+    - name: gateway
+      port: {{ .Values.accountBrowser.gatewayPort }}
+      targetPort: gateway
+{{- if .Values.networkPolicy.enabled }}
+---
+# Only Wicek may reach the MCP server and the login gateway. The browser may reach the web,
+# and the login mail server for emailed codes.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wicek.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-browser
+spec:
+  endpointSelector:
+    matchLabels:
+      {{- include "wicek.browserSelectorLabels" . | nindent 6 }}
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            {{- include "wicek.selectorLabels" . | nindent 12 }}
+      toPorts:
+        - ports:
+            - port: {{ .Values.accountBrowser.mcpPort | quote }}
+              protocol: TCP
+            - port: {{ .Values.accountBrowser.gatewayPort | quote }}
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s:k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "443"
+              protocol: TCP
+    {{- with .Values.accountBrowser.logins.mailServer }}
+    - toFQDNs:
+        - matchName: {{ . | quote }}
+      toPorts:
+        - ports:
+            - port: "993"
+              protocol: TCP
+    {{- end }}
+{{- end }}
+{{- end }}

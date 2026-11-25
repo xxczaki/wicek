@@ -178,6 +178,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 0.3.330
         version: 0.3.330(@anthropic-ai/sdk@0.100.1(zod@4.6.7))(@modelcontextprotocol/sdk@1.29.0(zod@4.6.7))(zod@4.6.7)
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(zod@4.6.7)
       '@upstash/context7-mcp':
         specifier: 4.7.3
         version: 4.7.3

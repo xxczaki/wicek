@@ -46,6 +46,7 @@ RUN apt-get update && \
     mkdir -p /tmp/.X11-unix && \
     chmod 1777 /tmp/.X11-unix
 COPY --chmod=755 chromium/run.sh /usr/local/bin/chromium-run
+COPY chromium/extension/ /opt/wicek-extension/
 USER 1000
 ENV HOME=/home/chromium
 ENTRYPOINT ["/usr/local/bin/chromium-run"]
