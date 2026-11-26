@@ -73,7 +73,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/xxczaki/wicek
           flavor: |
@@ -93,7 +93,7 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Extract broker metadata
         id: brokerMeta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/xxczaki/wicek-broker
           flavor: |
@@ -113,7 +113,7 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Extract chromium metadata
         id: chromiumMeta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/xxczaki/wicek-chromium
           flavor: |
